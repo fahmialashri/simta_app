@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -55,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.project.auth.AuthViewModel
 import com.project.component.LecturerCard
 import com.project.component.SimtaTextField
 import com.project.core.SimtaRed
@@ -66,20 +66,30 @@ import com.project.navigation.Screen
 fun LecturerListScreen(
     navController: NavHostController,
     lecturerViewModel: LecturerViewModel,
+    authViewModel: AuthViewModel,
     onBackClick: () -> Unit,
     onLecturerClick: (Long) -> Unit
 ) {
     val state by lecturerViewModel.uiState.collectAsState()
+    val authState by authViewModel.uiState.collectAsState()
+
+    val departmentId = authState.departmentId
+    val departmentName = when (departmentId) {
+        1L -> "Informatika"
+        2L -> "Sistem Informasi"
+        else -> "Program Studi"
+    }
 
     var search by remember { mutableStateOf("") }
     var selectedExpertise by remember { mutableStateOf("Semua") }
 
-    LaunchedEffect(Unit) {
-        lecturerViewModel.loadLecturers()
+    LaunchedEffect(departmentId) {
+        lecturerViewModel.loadLecturersByDepartment(departmentId)
     }
 
     val expertiseOptions = listOf("Semua") + state.lecturers
         .mapNotNull { it.expertise }
+        .filter { it.isNotBlank() }
         .distinct()
 
     val filteredLecturers = state.lecturers.filter { lecturer ->
@@ -96,7 +106,7 @@ fun LecturerListScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFFF8F9FA), // Background abu-abu muda bersih
+        containerColor = Color(0xFFF8F9FA),
         bottomBar = {
             LecturerBottomNavigation(
                 onHomeClick = {
@@ -105,10 +115,10 @@ fun LecturerListScreen(
                     }
                 },
                 onPengajuanClick = {
-                    onBackClick() // Pop back ke halaman Pengajuan utama
+                    onBackClick()
                 },
                 onBimbinganClick = {
-                    // Route ke bimbingan nanti
+                    navController.navigate(Screen.Bimbingan.route)
                 },
                 onProfileClick = {
                     navController.navigate(Screen.Profile.route)
@@ -116,21 +126,17 @@ fun LecturerListScreen(
             )
         }
     ) { paddingValues ->
-        // Menggunakan LazyColumn sebagai parent utama agar keseluruhan layar bisa di-scroll rapi
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-
-            // 1. HEADER & SEARCH CARD SECTION (Digabung agar bisa overlapping)
             item {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                    // Background Merah Melengkung di Header
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -143,20 +149,17 @@ fun LecturerListScreen(
                             )
                     )
 
-                    // Konten Header
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 32.dp) // Jarak dari status bar
+                            .padding(top = 32.dp)
                     ) {
-                        // Title Bar
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 20.dp)
                         ) {
-                            // Tombol Back Modern
                             IconButton(
                                 onClick = onBackClick,
                                 modifier = Modifier
@@ -180,8 +183,9 @@ fun LecturerListScreen(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color.White
                                 )
+
                                 Text(
-                                    text = "Temukan yang pas dengan topikmu",
+                                    text = "Program Studi $departmentName",
                                     fontSize = 12.sp,
                                     color = Color.White.copy(alpha = 0.8f)
                                 )
@@ -190,7 +194,6 @@ fun LecturerListScreen(
 
                         Spacer(modifier = Modifier.height(32.dp))
 
-                        // Floating Search & Filter Card (Overlapping header)
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -204,7 +207,6 @@ fun LecturerListScreen(
                                     .fillMaxWidth()
                                     .padding(16.dp)
                             ) {
-                                // Search Input
                                 SimtaTextField(
                                     value = search,
                                     onValueChange = { search = it },
@@ -222,7 +224,6 @@ fun LecturerListScreen(
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // Filter Chips Custom
                                 FlowRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -230,6 +231,7 @@ fun LecturerListScreen(
                                 ) {
                                     expertiseOptions.forEach { expertise ->
                                         val isSelected = selectedExpertise == expertise
+
                                         CustomFilterChip(
                                             text = expertise,
                                             isSelected = isSelected,
@@ -243,7 +245,6 @@ fun LecturerListScreen(
                 }
             }
 
-            // 2. HASIL PENCARIAN & STATE LOADING/ERROR
             item {
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -255,7 +256,7 @@ fun LecturerListScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Daftar Dosen",
+                        text = "Daftar Dosen $departmentName",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2D3436)
@@ -284,7 +285,9 @@ fun LecturerListScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             CircularProgressIndicator(color = SimtaRed)
+
                             Spacer(modifier = Modifier.height(16.dp))
+
                             Text(
                                 text = "Menyiapkan daftar dosen...",
                                 color = Color.Gray,
@@ -330,13 +333,16 @@ fun LecturerListScreen(
                                 modifier = Modifier.size(64.dp),
                                 tint = Color.LightGray
                             )
+
                             Spacer(modifier = Modifier.height(12.dp))
+
                             Text(
                                 text = "Dosen tidak ditemukan",
                                 color = Color.Gray,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
+
                             Text(
                                 text = "Coba ubah kata kunci atau filter bidang",
                                 color = Color.Gray,
@@ -430,7 +436,6 @@ private fun LecturerBottomNavigation(
             }
         )
 
-        // Menu "Pengajuan" aktif karena Daftar Dosen adalah bagian dari flow Pengajuan
         NavigationBarItem(
             selected = true,
             onClick = onPengajuanClick,

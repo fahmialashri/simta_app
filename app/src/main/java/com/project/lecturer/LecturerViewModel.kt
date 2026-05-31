@@ -14,23 +14,42 @@ class LecturerViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(LecturerUiState())
     val uiState: StateFlow<LecturerUiState> = _uiState
 
-    fun loadLecturers() {
+    fun loadLecturersByDepartment(departmentId: Long?) {
         viewModelScope.launch {
             try {
-                _uiState.value = LecturerUiState(isLoading = true)
+                if (departmentId == null) {
+                    _uiState.value = LecturerUiState(
+                        isLoading = false,
+                        lecturers = emptyList(),
+                        errorMessage = "Program studi mahasiswa belum ditemukan."
+                    )
+                    return@launch
+                }
 
-                val lecturers = repository.getInformatikaLecturers()
+                _uiState.value = LecturerUiState(
+                    isLoading = true,
+                    lecturers = emptyList(),
+                    errorMessage = null
+                )
+
+                val lecturers = repository.getLecturersByDepartment(departmentId)
 
                 _uiState.value = LecturerUiState(
                     isLoading = false,
-                    lecturers = lecturers
+                    lecturers = lecturers,
+                    errorMessage = null
                 )
             } catch (e: Exception) {
                 _uiState.value = LecturerUiState(
                     isLoading = false,
+                    lecturers = emptyList(),
                     errorMessage = e.message ?: "Gagal mengambil data dosen"
                 )
             }
         }
+    }
+
+    fun loadLecturers() {
+        loadLecturersByDepartment(1L)
     }
 }

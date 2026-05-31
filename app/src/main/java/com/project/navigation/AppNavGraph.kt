@@ -205,6 +205,7 @@ fun AppNavGraph() {
             LecturerListScreen(
                 navController = navController,
                 lecturerViewModel = lecturerViewModel,
+                authViewModel = authViewModel,
                 onBackClick = {
                     navController.popBackStack()
                 },

@@ -85,6 +85,12 @@ fun MahasiswaDashboardScreen(
         "0 % Selesai"
     }
 
+    val departmentName = when (authState.departmentId) {
+        1L -> "Informatika"
+        2L -> "Sistem Informasi"
+        else -> "Program Studi"
+    }
+
     Scaffold(
         containerColor = Color.White,
         bottomBar = {
@@ -113,7 +119,8 @@ fun MahasiswaDashboardScreen(
                 .padding(horizontal = 20.dp, vertical = 24.dp)
         ) {
             DashboardHeader(
-                name = authState.name ?: "MAHASISWA"
+                name = authState.name ?: "MAHASISWA",
+                departmentName = departmentName
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -195,7 +202,8 @@ fun MahasiswaDashboardScreen(
 
 @Composable
 private fun DashboardHeader(
-    name: String
+    name: String,
+    departmentName: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -236,6 +244,15 @@ private fun DashboardHeader(
                 fontWeight = FontWeight.Medium,
                 color = Color.DarkGray,
                 letterSpacing = 0.5.sp
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = departmentName,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = SimtaRed
             )
         }
 

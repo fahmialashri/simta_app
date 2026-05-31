@@ -1,5 +1,6 @@
 package com.project.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,8 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -27,6 +28,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -58,13 +64,16 @@ import com.project.auth.AuthViewModel
 import com.project.component.SimtaButton
 import com.project.core.SimtaRed
 import com.project.navigation.Screen
+import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
     val state by authViewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -72,8 +81,20 @@ fun RegisterScreen(
     var nim by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    var selectedProgramStudi by remember { mutableStateOf("Informatika") }
+    var selectedDepartmentId by remember { mutableStateOf(1L) }
+    var isProgramStudiExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        authViewModel.toastMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     LaunchedEffect(state.isLoggedIn, state.role) {
         if (state.isLoggedIn) {
+            delay(500)
+
             when (state.role) {
                 "dosen" -> navController.navigate(Screen.DosenDashboard.route) {
                     popUpTo(Screen.Register.route) { inclusive = true }
@@ -91,7 +112,6 @@ fun RegisterScreen(
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
     ) {
-        // Dekorasi Header Melengkung
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -107,13 +127,12 @@ fun RegisterScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()) // Scroll ditaruh di sini biar seluruh layar bisa di-scroll
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(72.dp))
 
-            // Logo / Icon Aplikasi
             Box(
                 modifier = Modifier
                     .size(72.dp)
@@ -124,13 +143,12 @@ fun RegisterScreen(
                 Image(
                     painter = painterResource(id = R.drawable.logo_simta),
                     contentDescription = "Logo SIMTA",
-                    modifier = Modifier.size(60.dp) // Disesuaikan ukurannya biar pas di dalam kotak
+                    modifier = Modifier.size(60.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Judul Aplikasi
             Text(
                 text = "Daftar Akun",
                 color = Color.White,
@@ -148,7 +166,6 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Floating Card Form Register
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -181,7 +198,6 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // Field Nama Lengkap
                     OutlinedTextField(
                         value = fullName,
                         onValueChange = {
@@ -205,7 +221,6 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Field Email
                     OutlinedTextField(
                         value = email,
                         onValueChange = {
@@ -229,7 +244,6 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Field NIM
                     OutlinedTextField(
                         value = nim,
                         onValueChange = {
@@ -253,7 +267,65 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Field Password
+                    ExposedDropdownMenuBox(
+                        expanded = isProgramStudiExpanded,
+                        onExpandedChange = {
+                            isProgramStudiExpanded = !isProgramStudiExpanded
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = selectedProgramStudi,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Program Studi") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(
+                                    expanded = isProgramStudiExpanded
+                                )
+                            },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = SimtaRed,
+                                unfocusedBorderColor = Color.LightGray,
+                                focusedLabelColor = SimtaRed
+                            ),
+                            singleLine = true
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = isProgramStudiExpanded,
+                            onDismissRequest = {
+                                isProgramStudiExpanded = false
+                            }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Informatika") },
+                                onClick = {
+                                    selectedProgramStudi = "Informatika"
+                                    selectedDepartmentId = 1L
+                                    isProgramStudiExpanded = false
+                                    if (state.errorMessage != null) authViewModel.clearError()
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Sistem Informasi") },
+                                onClick = {
+                                    selectedProgramStudi = "Sistem Informasi"
+                                    selectedDepartmentId = 2L
+                                    isProgramStudiExpanded = false
+                                    if (state.errorMessage != null) authViewModel.clearError()
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     OutlinedTextField(
                         value = password,
                         onValueChange = {
@@ -263,13 +335,30 @@ fun RegisterScreen(
                         label = { Text("Kata Sandi") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         isError = state.errorMessage != null,
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
                         trailingIcon = {
-                            val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            val image = if (passwordVisible) {
+                                Icons.Default.Visibility
+                            } else {
+                                Icons.Default.VisibilityOff
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    passwordVisible = !passwordVisible
+                                }
+                            ) {
                                 Icon(
                                     imageVector = image,
-                                    contentDescription = if (passwordVisible) "Sembunyikan password" else "Tampilkan password",
+                                    contentDescription = if (passwordVisible) {
+                                        "Sembunyikan password"
+                                    } else {
+                                        "Tampilkan password"
+                                    },
                                     tint = Color.Gray
                                 )
                             }
@@ -296,14 +385,14 @@ fun RegisterScreen(
                             fullName = fullName.trim(),
                             email = email.trim(),
                             password = password,
-                            nim = nim.trim()
+                            nim = nim.trim(),
+                            departmentId = selectedDepartmentId
                         )
                     }
 
-                    // Tampilan Error Message sebaris (opsional, karena udah ada alert dialog)
-                    // Tapi dipertahankan biar konsisten kayak login
                     if (state.errorMessage != null) {
                         Spacer(modifier = Modifier.height(16.dp))
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -324,7 +413,6 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    // Link Balik ke Login
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
@@ -334,6 +422,7 @@ fun RegisterScreen(
                             fontSize = 13.sp,
                             color = Color.Gray
                         )
+
                         Text(
                             text = "Masuk di sini",
                             fontSize = 13.sp,
@@ -341,8 +430,11 @@ fun RegisterScreen(
                             color = SimtaRed,
                             modifier = Modifier.clickable {
                                 authViewModel.clearError()
+
                                 navController.navigate(Screen.Login.route) {
-                                    popUpTo(Screen.Register.route) { inclusive = true }
+                                    popUpTo(Screen.Register.route) {
+                                        inclusive = true
+                                    }
                                 }
                             }
                         )
@@ -350,23 +442,28 @@ fun RegisterScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp)) // Padding bawah biar nggak mentok banget pas di scroll
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 
-    // Alert Dialog pop-up kalau Register gagal
     if (state.errorMessage != null) {
         AlertDialog(
-            onDismissRequest = { authViewModel.clearError() },
+            onDismissRequest = {
+                authViewModel.clearError()
+            },
             title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.Default.Warning,
                         contentDescription = "Warning",
                         tint = SimtaRed,
                         modifier = Modifier.size(24.dp)
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
+
                     Text(
                         text = "Pendaftaran Gagal",
                         fontWeight = FontWeight.Bold,
@@ -384,11 +481,19 @@ fun RegisterScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { authViewModel.clearError() },
-                    colors = ButtonDefaults.buttonColors(containerColor = SimtaRed),
+                    onClick = {
+                        authViewModel.clearError()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SimtaRed
+                    ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Tutup", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Tutup",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             },
             containerColor = Color.White,

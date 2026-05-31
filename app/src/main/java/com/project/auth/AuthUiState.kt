@@ -10,5 +10,7 @@ data class AuthUiState(
     val nim: String? = null,
     val nidn: String? = null,
     val lecturerId: Long? = null,
+    val facultyId: Long? = null,
+    val departmentId: Long? = null,
     val errorMessage: String? = null
 )

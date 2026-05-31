@@ -27,5 +27,14 @@ data class Profile(
     val phone: String? = null,
 
     @SerialName("avatar_url")
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+
+    @SerialName("siska_verified")
+    val siskaVerified: Boolean = false,
+
+    @SerialName("siska_last_sync_at")
+    val siskaLastSyncAt: String? = null,
+
+    @SerialName("siska_validation_note")
+    val siskaValidationNote: String? = null
 )
