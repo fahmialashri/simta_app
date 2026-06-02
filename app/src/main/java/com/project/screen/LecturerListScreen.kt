@@ -67,6 +67,7 @@ fun LecturerListScreen(
     navController: NavHostController,
     lecturerViewModel: LecturerViewModel,
     authViewModel: AuthViewModel,
+    initialExpertise: String? = null,
     onBackClick: () -> Unit,
     onLecturerClick: (Long) -> Unit
 ) {
@@ -81,16 +82,29 @@ fun LecturerListScreen(
     }
 
     var search by remember { mutableStateOf("") }
-    var selectedExpertise by remember { mutableStateOf("Semua") }
-
-    LaunchedEffect(departmentId) {
-        lecturerViewModel.loadLecturersByDepartment(departmentId)
+    var selectedExpertise by remember(initialExpertise) {
+        mutableStateOf(initialExpertise ?: "Semua")
     }
 
-    val expertiseOptions = listOf("Semua") + state.lecturers
-        .mapNotNull { it.expertise }
-        .filter { it.isNotBlank() }
-        .distinct()
+    LaunchedEffect(departmentId, initialExpertise) {
+        if (initialExpertise.isNullOrBlank()) {
+            lecturerViewModel.loadLecturersByDepartment(departmentId)
+        } else {
+            lecturerViewModel.loadLecturersByDepartmentAndExpertise(
+                departmentId = departmentId,
+                expertise = initialExpertise
+            )
+        }
+    }
+
+    val expertiseOptions = if (initialExpertise.isNullOrBlank()) {
+        listOf("Semua") + state.lecturers
+            .mapNotNull { it.expertise }
+            .filter { it.isNotBlank() }
+            .distinct()
+    } else {
+        listOf(initialExpertise)
+    }
 
     val filteredLecturers = state.lecturers.filter { lecturer ->
         val matchSearch =
@@ -111,7 +125,9 @@ fun LecturerListScreen(
             LecturerBottomNavigation(
                 onHomeClick = {
                     navController.navigate(Screen.MahasiswaDashboard.route) {
-                        popUpTo(Screen.MahasiswaDashboard.route) { inclusive = true }
+                        popUpTo(Screen.MahasiswaDashboard.route) {
+                            inclusive = true
+                        }
                     }
                 },
                 onPengajuanClick = {
@@ -143,9 +159,15 @@ fun LecturerListScreen(
                             .height(200.dp)
                             .background(
                                 brush = Brush.verticalGradient(
-                                    colors = listOf(SimtaRed, SimtaRed.copy(alpha = 0.8f))
+                                    colors = listOf(
+                                        SimtaRed,
+                                        SimtaRed.copy(alpha = 0.8f)
+                                    )
                                 ),
-                                shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+                                shape = RoundedCornerShape(
+                                    bottomStart = 32.dp,
+                                    bottomEnd = 32.dp
+                                )
                             )
                     )
 
@@ -185,7 +207,11 @@ fun LecturerListScreen(
                                 )
 
                                 Text(
-                                    text = "Program Studi $departmentName",
+                                    text = if (initialExpertise.isNullOrBlank()) {
+                                        "Program Studi $departmentName"
+                                    } else {
+                                        "$departmentName • $initialExpertise"
+                                    },
                                     fontSize = 12.sp,
                                     color = Color.White.copy(alpha = 0.8f)
                                 )
@@ -199,8 +225,12 @@ fun LecturerListScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 20.dp),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            ),
+                            elevation = CardDefaults.cardElevation(
+                                defaultElevation = 6.dp
+                            )
                         ) {
                             Column(
                                 modifier = Modifier
@@ -235,7 +265,9 @@ fun LecturerListScreen(
                                         CustomFilterChip(
                                             text = expertise,
                                             isSelected = isSelected,
-                                            onClick = { selectedExpertise = expertise }
+                                            onClick = {
+                                                selectedExpertise = expertise
+                                            }
                                         )
                                     }
                                 }
@@ -344,7 +376,11 @@ fun LecturerListScreen(
                             )
 
                             Text(
-                                text = "Coba ubah kata kunci atau filter bidang",
+                                text = if (initialExpertise.isNullOrBlank()) {
+                                    "Belum ada dosen untuk program studi ini"
+                                } else {
+                                    "Belum ada dosen dengan bidang $initialExpertise"
+                                },
                                 color = Color.Gray,
                                 fontSize = 12.sp
                             )
@@ -361,7 +397,9 @@ fun LecturerListScreen(
                         ) {
                             LecturerCard(
                                 lecturer = lecturer,
-                                onClick = { onLecturerClick(lecturer.id) }
+                                onClick = {
+                                    onLecturerClick(lecturer.id)
+                                }
                             )
                         }
                     }
@@ -380,7 +418,13 @@ private fun CustomFilterChip(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (isSelected) SimtaRed else Color(0xFFF1F3F4))
+            .background(
+                if (isSelected) {
+                    SimtaRed
+                } else {
+                    Color(0xFFF1F3F4)
+                }
+            )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center

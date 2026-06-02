@@ -1,5 +1,6 @@
 package com.project.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,61 +25,70 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.project.core.SimtaRed
+import com.project.data.model.ThesisSubmission
+import com.project.data.model.ThesisSubmissionDocument
 import com.project.navigation.Screen
-
-data class TuDocumentReviewUi(
-    val stageId: String,
-    val studentName: String,
-    val nim: String,
-    val stage: String,
-    val documentCount: Int,
-    val status: String
-)
+import com.project.upload.UploadBerkasViewModel
 
 @Composable
 fun TuDocumentReviewScreen(
     navController: NavHostController,
-    stage: String
+    stage: String,
+    uploadBerkasViewModel: UploadBerkasViewModel
 ) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val uploadState by uploadBerkasViewModel.uiState.collectAsState()
+
+    var openedSubmissionId by remember {
+        mutableStateOf<String?>(null)
+    }
+
     val title = when (stage) {
         "seminar_proposal" -> "Review Berkas Seminar Proposal"
         "kolokium" -> "Review Berkas Kolokium"
         "yudisium" -> "Review Berkas Yudisium"
+        "revisi_seminar_proposal" -> "Review Revisi Seminar Proposal"
+        "revisi_kolokium" -> "Review Revisi Kolokium"
         else -> "Review Berkas"
     }
 
-    val items = listOf(
-        TuDocumentReviewUi(
-            stageId = "stage_1",
-            studentName = "Ahmad Fauzi",
-            nim = "202101001",
-            stage = stage,
-            documentCount = 3,
-            status = "menunggu_review"
-        ),
-        TuDocumentReviewUi(
-            stageId = "stage_2",
-            studentName = "Siti Nurhaliza",
-            nim = "202101002",
-            stage = stage,
-            documentCount = 3,
-            status = "menunggu_review"
-        )
-    )
+    LaunchedEffect(stage) {
+        uploadBerkasViewModel.loadSubmissionsByStage(stage)
+    }
+
+    LaunchedEffect(uploadState.errorMessage) {
+        uploadState.errorMessage?.let { message ->
+            Toast.makeText(
+                context,
+                message,
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFF8F9FA)
@@ -123,33 +133,123 @@ fun TuDocumentReviewScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            items.forEach { item ->
-                TuDocumentCard(
-                    item = item,
-                    onViewDocument = {
-                        // Nanti buka file dari Supabase Storage
-                    },
-                    onApprove = {
-                        // Nanti update status stage_documents jadi valid
-                    },
-                    onPlotting = {
-                        navController.navigate(Screen.TuPlottingPenguji.createRoute(item.stageId))
-                    }
+            if (uploadState.isLoading && uploadState.submissions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = SimtaRed
+                    )
+                }
+            } else if (uploadState.submissions.isEmpty()) {
+                EmptyReviewCard(
+                    message = "Belum ada pengajuan untuk tahap ini."
                 )
+            } else {
+                uploadState.submissions.forEach { submission ->
+                    TuSubmissionCard(
+                        submission = submission,
+                        documents = if (openedSubmissionId == submission.id) {
+                            uploadState.selectedDocuments
+                        } else {
+                            emptyList()
+                        },
+                        isDocumentsOpen = openedSubmissionId == submission.id,
+                        onViewDocument = {
+                            openedSubmissionId = submission.id
+                            uploadBerkasViewModel.loadDocumentsBySubmissionId(submission.id)
+                        },
+                        onOpenFile = { fileUrl ->
+                            runCatching {
+                                uriHandler.openUri(fileUrl)
+                            }.onFailure {
+                                Toast.makeText(
+                                    context,
+                                    "Gagal membuka file.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        onApprove = {
+                            uploadBerkasViewModel.approveSubmission(
+                                submissionId = submission.id,
+                                reloadStage = stage
+                            )
+                        },
+                        onPlotting = {
+                            navController.navigate(
+                                Screen.TuPlottingPenguji.createRoute(submission.id)
+                            )
+                        }
+                    )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TuDocumentCard(
-    item: TuDocumentReviewUi,
+private fun EmptyReviewCard(
+    message: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Description,
+                contentDescription = null,
+                tint = Color.LightGray,
+                modifier = Modifier.size(42.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = message,
+                fontSize = 13.sp,
+                color = Color.DarkGray,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun TuSubmissionCard(
+    submission: ThesisSubmission,
+    documents: List<ThesisSubmissionDocument>,
+    isDocumentsOpen: Boolean,
     onViewDocument: () -> Unit,
+    onOpenFile: (String) -> Unit,
     onApprove: () -> Unit,
     onPlotting: () -> Unit
 ) {
+    val statusText = when (submission.status) {
+        "menunggu_review" -> "Menunggu Review TU"
+        "disetujui_tu" -> "Disetujui TU"
+        "ditolak_tu" -> "Ditolak TU"
+        else -> submission.status
+    }
+
+    val statusColor = when (submission.status) {
+        "menunggu_review" -> Color(0xFFFFA000)
+        "disetujui_tu" -> Color(0xFF2E7D32)
+        "ditolak_tu" -> SimtaRed
+        else -> Color.DarkGray
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -181,28 +281,49 @@ private fun TuDocumentCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = item.studentName,
+                        text = submission.studentName ?: "Nama tidak tersedia",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.Black
                     )
 
                     Text(
-                        text = "${item.nim} • ${item.documentCount} berkas",
+                        text = "${submission.nim ?: "-"} • ${submission.title ?: "Tanpa judul"}",
                         fontSize = 11.sp,
-                        color = Color.DarkGray
+                        color = Color.DarkGray,
+                        lineHeight = 15.sp
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Status: Menunggu Review TU",
+                text = "Status: $statusText",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFFFA000)
+                color = statusColor
             )
+
+            if (!submission.supervisor1.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Pembimbing: ${submission.supervisor1}",
+                    fontSize = 11.sp,
+                    color = Color.DarkGray
+                )
+            }
+
+            if (!submission.examiner1.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Penguji: ${submission.examiner1}",
+                    fontSize = 11.sp,
+                    color = Color.DarkGray
+                )
+            }
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -224,7 +345,7 @@ private fun TuDocumentCard(
                     Spacer(modifier = Modifier.size(6.dp))
 
                     Text(
-                        text = "Lihat",
+                        text = if (isDocumentsOpen) "Muat Ulang" else "Lihat",
                         color = SimtaRed,
                         fontWeight = FontWeight.Bold
                     )
@@ -232,9 +353,13 @@ private fun TuDocumentCard(
 
                 Button(
                     onClick = onApprove,
+                    enabled = submission.status == "menunggu_review",
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SimtaRed)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SimtaRed,
+                        disabledContainerColor = Color.LightGray
+                    )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Done,
@@ -250,6 +375,29 @@ private fun TuDocumentCard(
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+
+            if (isDocumentsOpen) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (documents.isEmpty()) {
+                    Text(
+                        text = "Dokumen belum termuat atau tidak ada dokumen.",
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                } else {
+                    documents.forEach { document ->
+                        DocumentFileRow(
+                            document = document,
+                            onOpenFile = {
+                                onOpenFile(document.fileUrl)
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
             }
 
@@ -278,6 +426,45 @@ private fun TuDocumentCard(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DocumentFileRow(
+    document: ThesisSubmissionDocument,
+    onOpenFile: () -> Unit
+) {
+    OutlinedButton(
+        onClick = onOpenFile,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Description,
+            contentDescription = null,
+            tint = SimtaRed,
+            modifier = Modifier.size(18.dp)
+        )
+
+        Spacer(modifier = Modifier.size(8.dp))
+
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                text = document.documentName,
+                color = Color.Black,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = document.documentKey,
+                color = Color.Gray,
+                fontSize = 10.sp
+            )
         }
     }
 }

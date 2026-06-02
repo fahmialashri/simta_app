@@ -1,28 +1,23 @@
 package com.project.screen
 
+import android.app.Activity
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -42,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,66 +53,53 @@ import com.project.core.SimtaRed
 import com.project.navigation.Screen
 
 @Composable
-fun LoginScreen(
+fun ResetPasswordScreen(
     navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
     val state by authViewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val activity = context as? Activity
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    val resetToken = remember(activity?.intent?.dataString) {
+        activity?.intent?.data?.getAccessTokenFromDeepLink()
+    }
 
-    LaunchedEffect(state.isLoggedIn, state.role) {
-        if (state.isLoggedIn) {
-            when (state.role?.trim()?.lowercase()) {
-                "mahasiswa" -> {
-                    navController.navigate(Screen.MahasiswaDashboard.route) {
-                        popUpTo(Screen.Login.route) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-                }
+    var newPassword by remember {
+        mutableStateOf("")
+    }
 
-                "dosen" -> {
-                    navController.navigate(Screen.DosenDashboard.route) {
-                        popUpTo(Screen.Login.route) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-                }
+    var confirmPassword by remember {
+        mutableStateOf("")
+    }
 
-                "kaprodi" -> {
-                    navController.navigate(Screen.KaprodiDashboard.route) {
-                        popUpTo(Screen.Login.route) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-                }
+    var passwordVisible by remember {
+        mutableStateOf(false)
+    }
 
-                "tu" -> {
-                    navController.navigate(Screen.TuDashboard.route) {
-                        popUpTo(Screen.Login.route) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-                }
+    var confirmPasswordVisible by remember {
+        mutableStateOf(false)
+    }
 
-                else -> {
-                    authViewModel.logout()
+    val isFormValid = newPassword.isNotBlank() && confirmPassword.isNotBlank()
 
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-                }
-            }
+    LaunchedEffect(Unit) {
+        authViewModel.resetLoadingState()
+    }
+
+    LaunchedEffect(resetToken) {
+        if (resetToken.isNullOrBlank()) {
+            Toast.makeText(
+                context,
+                "Token reset tidak kebaca dari link email. Coba kirim ulang link reset password.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        authViewModel.toastMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -128,12 +111,12 @@ fun LoginScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(340.dp)
+                .height(300.dp)
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
                             SimtaRed,
-                            SimtaRed.copy(alpha = 0.8f)
+                            SimtaRed.copy(alpha = 0.82f)
                         )
                     ),
                     shape = RoundedCornerShape(
@@ -165,71 +148,90 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "SIMTA",
+                text = "Ganti Password",
                 color = Color.White,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 28.sp,
-                letterSpacing = 6.sp
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold
             )
 
             Text(
-                text = "Sistem Informasi Tugas Akhir",
+                text = "Masukkan password baru akun kamu",
                 color = Color.White.copy(alpha = 0.9f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(42.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 32.dp),
+                        .padding(horizontal = 24.dp, vertical = 30.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Selamat Datang!",
+                        text = "Password Baru",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.Black
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Silakan masuk ke akun Anda",
+                        text = "Gunakan password minimal 6 karakter.",
                         fontSize = 13.sp,
                         color = Color.Gray
                     )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
 
                     OutlinedTextField(
-                        value = email,
+                        value = newPassword,
                         onValueChange = {
-                            email = it
+                            newPassword = it
 
                             if (state.errorMessage != null) {
                                 authViewModel.clearError()
                             }
                         },
                         label = {
-                            Text("Alamat Email")
+                            Text("Password Baru")
                         },
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email
+                            keyboardType = KeyboardType.Password
                         ),
+                        visualTransformation = if (passwordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = {
+                                    passwordVisible = !passwordVisible
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (passwordVisible) {
+                                        Icons.Default.Visibility
+                                    } else {
+                                        Icons.Default.VisibilityOff
+                                    },
+                                    contentDescription = "Toggle password",
+                                    tint = Color.Gray
+                                )
+                            }
+                        },
                         isError = state.errorMessage != null,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -246,49 +248,43 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     OutlinedTextField(
-                        value = password,
+                        value = confirmPassword,
                         onValueChange = {
-                            password = it
+                            confirmPassword = it
 
                             if (state.errorMessage != null) {
                                 authViewModel.clearError()
                             }
                         },
                         label = {
-                            Text("Kata Sandi")
+                            Text("Konfirmasi Password")
                         },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password
                         ),
-                        isError = state.errorMessage != null,
-                        visualTransformation = if (passwordVisible) {
+                        visualTransformation = if (confirmPasswordVisible) {
                             VisualTransformation.None
                         } else {
                             PasswordVisualTransformation()
                         },
                         trailingIcon = {
-                            val image = if (passwordVisible) {
-                                Icons.Default.Visibility
-                            } else {
-                                Icons.Default.VisibilityOff
-                            }
-
                             IconButton(
                                 onClick = {
-                                    passwordVisible = !passwordVisible
+                                    confirmPasswordVisible = !confirmPasswordVisible
                                 }
                             ) {
                                 Icon(
-                                    imageVector = image,
-                                    contentDescription = if (passwordVisible) {
-                                        "Sembunyikan password"
+                                    imageVector = if (confirmPasswordVisible) {
+                                        Icons.Default.Visibility
                                     } else {
-                                        "Tampilkan password"
+                                        Icons.Default.VisibilityOff
                                     },
+                                    contentDescription = "Toggle konfirmasi password",
                                     tint = Color.Gray
                                 )
                             }
                         },
+                        isError = state.errorMessage != null,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -301,21 +297,14 @@ fun LoginScreen(
                         singleLine = true
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    if (state.errorMessage != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
                         Text(
-                            text = "Lupa Kata Sandi?",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            text = state.errorMessage.orEmpty(),
                             color = SimtaRed,
-                            modifier = Modifier.clickable {
-                                authViewModel.clearError()
-                                navController.navigate(Screen.ForgotPassword.route)
-                            }
+                            fontSize = 12.sp,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
@@ -323,38 +312,23 @@ fun LoginScreen(
 
                     SimtaButton(
                         text = if (state.isLoading) {
-                            "Memproses..."
+                            "Menyimpan..."
                         } else {
-                            "Masuk"
+                            "Simpan Password Baru"
                         },
-                        enabled = !state.isLoading
+                        enabled = !state.isLoading && isFormValid
                     ) {
-                        authViewModel.login(
-                            email = email.trim(),
-                            password = password
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(28.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "Belum punya akun? ",
-                            fontSize = 13.sp,
-                            color = Color.Gray
-                        )
-
-                        Text(
-                            text = "Daftar di sini",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = SimtaRed,
-                            modifier = Modifier.clickable {
-                                authViewModel.clearError()
-                                navController.navigate(Screen.Register.route)
+                        authViewModel.updatePasswordFromRecoveryLink(
+                            accessToken = resetToken,
+                            newPassword = newPassword,
+                            confirmPassword = confirmPassword,
+                            onSuccess = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(0) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
                             }
                         )
                     }
@@ -362,59 +336,41 @@ fun LoginScreen(
             }
         }
     }
+}
 
-    if (state.errorMessage != null) {
-        AlertDialog(
-            onDismissRequest = {
-                authViewModel.clearError()
-            },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Warning",
-                        tint = SimtaRed,
-                        modifier = Modifier.size(24.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "Login Gagal",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color.Black
-                    )
-                }
-            },
-            text = {
-                Text(
-                    text = state.errorMessage ?: "Terjadi kesalahan",
-                    fontSize = 14.sp,
-                    color = Color.DarkGray
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        authViewModel.clearError()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SimtaRed
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "Tutup",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(16.dp)
-        )
+private fun Uri.getAccessTokenFromDeepLink(): String? {
+    getQueryParameter("access_token")?.takeIf { it.isNotBlank() }?.let {
+        return it
     }
+
+    getQueryParameter("token")?.takeIf { it.isNotBlank() }?.let {
+        return it
+    }
+
+    getQueryParameter("token_hash")?.takeIf { it.isNotBlank() }?.let {
+        return it
+    }
+
+    val fragmentValue = fragment.orEmpty()
+
+    if (fragmentValue.isBlank()) {
+        return null
+    }
+
+    val fragmentParams = fragmentValue
+        .split("&")
+        .mapNotNull { item ->
+            val parts = item.split("=", limit = 2)
+
+            if (parts.size == 2) {
+                parts[0] to parts[1]
+            } else {
+                null
+            }
+        }
+        .toMap()
+
+    return fragmentParams["access_token"]
+        ?: fragmentParams["token"]
+        ?: fragmentParams["token_hash"]
 }

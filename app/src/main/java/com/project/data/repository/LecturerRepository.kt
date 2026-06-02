@@ -19,7 +19,7 @@ class LecturerRepository {
                     }
                 }
                 .decodeList<Lecturer>()
-                .sortedBy { it.id }
+                .sortedBy { it.name }
 
             Log.d(
                 "LecturerRepository",
@@ -28,7 +28,43 @@ class LecturerRepository {
 
             lecturers
         } catch (e: Exception) {
-            Log.e("LecturerRepository", "Gagal ambil dosen department_id=$departmentId", e)
+            Log.e(
+                "LecturerRepository",
+                "Gagal ambil dosen department_id=$departmentId",
+                e
+            )
+            throw e
+        }
+    }
+
+    suspend fun getLecturersByDepartmentAndExpertise(
+        departmentId: Long,
+        expertise: String
+    ): List<Lecturer> {
+        return try {
+            val lecturers = supabase
+                .from("lecturers")
+                .select {
+                    filter {
+                        eq("department_id", departmentId)
+                        eq("expertise", expertise)
+                    }
+                }
+                .decodeList<Lecturer>()
+                .sortedBy { it.name }
+
+            Log.d(
+                "LecturerRepository",
+                "Jumlah dosen department_id=$departmentId expertise=$expertise: ${lecturers.size}"
+            )
+
+            lecturers
+        } catch (e: Exception) {
+            Log.e(
+                "LecturerRepository",
+                "Gagal ambil dosen department_id=$departmentId expertise=$expertise",
+                e
+            )
             throw e
         }
     }

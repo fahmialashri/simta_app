@@ -7,20 +7,51 @@ import com.project.data.repository.ProfileRepository
 import com.project.data.repository.SiskaRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.net.URLEncoder
 
 class AuthViewModel : ViewModel() {
 
     private val supabase = SupabaseClientProvider.client
     private val profileRepository = ProfileRepository()
     private val siskaRepository = SiskaRepository()
+
+    private val authHttpClient = HttpClient(Android) {
+        install(ContentNegotiation) {
+            json(
+                Json {
+                    ignoreUnknownKeys = true
+                    explicitNulls = false
+                }
+            )
+        }
+    }
 
     private val _uiState = MutableStateFlow(AuthUiState(isLoading = true))
     val uiState: StateFlow<AuthUiState> = _uiState
@@ -200,10 +231,8 @@ class AuthViewModel : ViewModel() {
                         put("nim", cleanNim)
                         put("nidn", null as String?)
                         put("lecturer_id", null as Long?)
-
                         put("faculty_id", 1L)
                         put("department_id", departmentId)
-
                         put("siska_verified", true)
                         put("siska_validation_note", "Valid from SISKA")
                     }
@@ -260,7 +289,233 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    fun sendPasswordResetEmail(
+        email: String,
+        onSuccess: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim()
+
+            if (cleanEmail.isBlank()) {
+                val message = "Email wajib diisi."
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = message
+                )
+
+                _toastMessage.emit(message)
+                return@launch
+            }
+
+            try {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    errorMessage = null
+                )
+
+                val redirectUrl = "simtaapp://reset-password"
+
+                val encodedRedirectUrl = withContext(Dispatchers.IO) {
+                    URLEncoder.encode(redirectUrl, "UTF-8")
+                }
+
+                val response: HttpResponse = authHttpClient.post(
+                    "${SupabaseClientProvider.SUPABASE_URL}/auth/v1/recover?redirect_to=$encodedRedirectUrl"
+                ) {
+                    header("apikey", SupabaseClientProvider.SUPABASE_KEY)
+                    header(
+                        HttpHeaders.Authorization,
+                        "Bearer ${SupabaseClientProvider.SUPABASE_KEY}"
+                    )
+                    contentType(ContentType.Application.Json)
+
+                    setBody(
+                        buildJsonObject {
+                            put("email", cleanEmail)
+                        }
+                    )
+                }
+
+                if (response.status != HttpStatusCode.OK) {
+                    throw Exception(
+                        readSupabaseError(
+                            response = response,
+                            fallbackMessage = "Gagal mengirim email reset password."
+                        )
+                    )
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = null
+                )
+
+                _toastMessage.emit("Link reset password sudah dikirim ke email kamu.")
+                onSuccess?.invoke()
+            } catch (e: Exception) {
+                val message = e.message ?: "Gagal mengirim email reset password."
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = message
+                )
+
+                _toastMessage.emit(message)
+            }
+        }
+    }
+
+    fun updatePasswordFromRecoveryLink(
+        accessToken: String?,
+        newPassword: String,
+        confirmPassword: String,
+        onSuccess: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val cleanToken = accessToken.orEmpty().trim()
+
+                if (cleanToken.isBlank()) {
+                    val message =
+                        "Token reset password tidak ditemukan. Silakan buka ulang link dari email atau kirim ulang link reset password."
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = message
+                    )
+
+                    _toastMessage.emit(message)
+                    return@launch
+                }
+
+                if (newPassword.isBlank()) {
+                    val message = "Password baru wajib diisi."
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = message
+                    )
+
+                    _toastMessage.emit(message)
+                    return@launch
+                }
+
+                if (confirmPassword.isBlank()) {
+                    val message = "Konfirmasi password wajib diisi."
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = message
+                    )
+
+                    _toastMessage.emit(message)
+                    return@launch
+                }
+
+                if (newPassword.length < 6) {
+                    val message = "Password minimal 6 karakter."
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = message
+                    )
+
+                    _toastMessage.emit(message)
+                    return@launch
+                }
+
+                if (newPassword != confirmPassword) {
+                    val message = "Konfirmasi password tidak sama."
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = message
+                    )
+
+                    _toastMessage.emit(message)
+                    return@launch
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    errorMessage = null
+                )
+
+                val response: HttpResponse = authHttpClient.put(
+                    "${SupabaseClientProvider.SUPABASE_URL}/auth/v1/user"
+                ) {
+                    header("apikey", SupabaseClientProvider.SUPABASE_KEY)
+                    header(HttpHeaders.Authorization, "Bearer $cleanToken")
+                    contentType(ContentType.Application.Json)
+
+                    setBody(
+                        buildJsonObject {
+                            put("password", newPassword)
+                        }
+                    )
+                }
+
+                if (response.status != HttpStatusCode.OK) {
+                    throw Exception(
+                        readSupabaseError(
+                            response = response,
+                            fallbackMessage = "Gagal mengganti password. Link reset mungkin sudah kadaluarsa atau sudah pernah digunakan."
+                        )
+                    )
+                }
+
+                supabase.auth.signOut()
+
+                _uiState.value = AuthUiState(
+                    isLoading = false,
+                    isLoggedIn = false,
+                    errorMessage = null
+                )
+
+                _toastMessage.emit("Password berhasil diganti. Silakan login memakai password baru.")
+                onSuccess?.invoke()
+            } catch (e: Exception) {
+                val message = e.message ?: "Gagal mengganti password."
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = message
+                )
+
+                _toastMessage.emit(message)
+            }
+        }
+    }
+
+    private suspend fun readSupabaseError(
+        response: HttpResponse,
+        fallbackMessage: String
+    ): String {
+        return try {
+            val text = response.body<String>()
+            val json = Json.parseToJsonElement(text).jsonObject
+
+            json["msg"]?.jsonPrimitive?.content
+                ?: json["message"]?.jsonPrimitive?.content
+                ?: json["error_description"]?.jsonPrimitive?.content
+                ?: json["error"]?.jsonPrimitive?.content
+                ?: fallbackMessage
+        } catch (_: Exception) {
+            fallbackMessage
+        }
+    }
+
+    fun resetLoadingState() {
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            errorMessage = null
+        )
+    }
+
     fun clearError() {
-        _uiState.value = _uiState.value.copy(errorMessage = null)
+        _uiState.value = _uiState.value.copy(
+            errorMessage = null
+        )
     }
 }

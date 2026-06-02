@@ -49,6 +49,56 @@ class LecturerViewModel : ViewModel() {
         }
     }
 
+    fun loadLecturersByDepartmentAndExpertise(
+        departmentId: Long?,
+        expertise: String?
+    ) {
+        viewModelScope.launch {
+            try {
+                if (departmentId == null) {
+                    _uiState.value = LecturerUiState(
+                        isLoading = false,
+                        lecturers = emptyList(),
+                        errorMessage = "Program studi mahasiswa belum ditemukan."
+                    )
+                    return@launch
+                }
+
+                if (expertise.isNullOrBlank()) {
+                    _uiState.value = LecturerUiState(
+                        isLoading = false,
+                        lecturers = emptyList(),
+                        errorMessage = null
+                    )
+                    return@launch
+                }
+
+                _uiState.value = LecturerUiState(
+                    isLoading = true,
+                    lecturers = emptyList(),
+                    errorMessage = null
+                )
+
+                val lecturers = repository.getLecturersByDepartmentAndExpertise(
+                    departmentId = departmentId,
+                    expertise = expertise
+                )
+
+                _uiState.value = LecturerUiState(
+                    isLoading = false,
+                    lecturers = lecturers,
+                    errorMessage = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = LecturerUiState(
+                    isLoading = false,
+                    lecturers = emptyList(),
+                    errorMessage = e.message ?: "Gagal mengambil data dosen"
+                )
+            }
+        }
+    }
+
     fun loadLecturers() {
         loadLecturersByDepartment(1L)
     }

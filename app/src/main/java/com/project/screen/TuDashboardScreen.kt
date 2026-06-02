@@ -23,10 +23,14 @@ import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -38,12 +42,42 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.project.core.SimtaRed
 import com.project.navigation.Screen
+import com.project.upload.UploadBerkasViewModel
 
 @Composable
 fun TuDashboardScreen(
     navController: NavHostController,
+    uploadBerkasViewModel: UploadBerkasViewModel,
     onLogout: () -> Unit = {}
 ) {
+    val uploadState by uploadBerkasViewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        uploadBerkasViewModel.loadPendingSubmissions()
+    }
+
+    val submissions = uploadState.submissions
+
+    val seminarProposalCount = submissions.count {
+        it.stage == "seminar_proposal"
+    }
+
+    val kolokiumCount = submissions.count {
+        it.stage == "kolokium"
+    }
+
+    val yudisiumCount = submissions.count {
+        it.stage == "yudisium"
+    }
+
+    val revisiSeminarProposalCount = submissions.count {
+        it.stage == "revisi_seminar_proposal"
+    }
+
+    val revisiKolokiumCount = submissions.count {
+        it.stage == "revisi_kolokium"
+    }
+
     Scaffold(
         containerColor = Color(0xFFF8F9FA)
     ) { paddingValues ->
@@ -92,7 +126,21 @@ fun TuDashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            TuSummaryCard()
+            TuSummaryCard(
+                totalPending = submissions.size,
+                isLoading = uploadState.isLoading
+            )
+
+            if (uploadState.errorMessage != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = uploadState.errorMessage.orEmpty(),
+                    color = SimtaRed,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
             Spacer(modifier = Modifier.height(22.dp))
 
@@ -107,11 +155,13 @@ fun TuDashboardScreen(
 
             TuMenuCard(
                 title = "Berkas Seminar Proposal",
-                subtitle = "Cek kelengkapan berkas sempro mahasiswa",
+                subtitle = "$seminarProposalCount pengajuan menunggu review",
                 icon = Icons.Default.UploadFile,
                 colors = listOf(Color(0xFFE3F2FD), Color(0xFF64B5F6)),
                 onClick = {
-                    navController.navigate(Screen.TuDocumentReview.createRoute("seminar_proposal"))
+                    navController.navigate(
+                        Screen.TuDocumentReview.createRoute("seminar_proposal")
+                    )
                 }
             )
 
@@ -119,11 +169,13 @@ fun TuDashboardScreen(
 
             TuMenuCard(
                 title = "Berkas Kolokium",
-                subtitle = "Cek berkas sidang hasil / kolokium",
+                subtitle = "$kolokiumCount pengajuan menunggu review",
                 icon = Icons.Default.AssignmentTurnedIn,
                 colors = listOf(Color(0xFFE8F5E9), Color(0xFF81C784)),
                 onClick = {
-                    navController.navigate(Screen.TuDocumentReview.createRoute("kolokium"))
+                    navController.navigate(
+                        Screen.TuDocumentReview.createRoute("kolokium")
+                    )
                 }
             )
 
@@ -131,11 +183,41 @@ fun TuDashboardScreen(
 
             TuMenuCard(
                 title = "Berkas Yudisium",
-                subtitle = "Validasi berkas akhir mahasiswa",
+                subtitle = "$yudisiumCount pengajuan menunggu review",
                 icon = Icons.Default.WorkspacePremium,
                 colors = listOf(Color(0xFFFFF3E0), Color(0xFFFFB74D)),
                 onClick = {
-                    navController.navigate(Screen.TuDocumentReview.createRoute("yudisium"))
+                    navController.navigate(
+                        Screen.TuDocumentReview.createRoute("yudisium")
+                    )
+                }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            TuMenuCard(
+                title = "Revisi Seminar Proposal",
+                subtitle = "$revisiSeminarProposalCount revisi menunggu review",
+                icon = Icons.Default.UploadFile,
+                colors = listOf(Color(0xFFF3E5F5), Color(0xFFBA68C8)),
+                onClick = {
+                    navController.navigate(
+                        Screen.TuDocumentReview.createRoute("revisi_seminar_proposal")
+                    )
+                }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            TuMenuCard(
+                title = "Revisi Kolokium",
+                subtitle = "$revisiKolokiumCount revisi menunggu review",
+                icon = Icons.Default.AssignmentTurnedIn,
+                colors = listOf(Color(0xFFE0F7FA), Color(0xFF4DD0E1)),
+                onClick = {
+                    navController.navigate(
+                        Screen.TuDocumentReview.createRoute("revisi_kolokium")
+                    )
                 }
             )
 
@@ -147,7 +229,9 @@ fun TuDashboardScreen(
                 icon = Icons.Default.ManageAccounts,
                 colors = listOf(Color(0xFFFCE4EC), Color(0xFFF06292)),
                 onClick = {
-                    navController.navigate(Screen.TuPlottingPenguji.createRoute("default_stage_id"))
+                    navController.navigate(
+                        Screen.TuPlottingPenguji.createRoute("default_stage_id")
+                    )
                 }
             )
         }
@@ -155,7 +239,10 @@ fun TuDashboardScreen(
 }
 
 @Composable
-private fun TuSummaryCard() {
+private fun TuSummaryCard(
+    totalPending: Int,
+    isLoading: Boolean
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -174,19 +261,31 @@ private fun TuSummaryCard() {
                     .background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Groups,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(30.dp)
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(26.dp),
+                        strokeWidth = 3.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Groups,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.size(14.dp))
 
             Column {
                 Text(
-                    text = "Administrasi Skripsi",
+                    text = if (isLoading) {
+                        "Memuat Data..."
+                    } else {
+                        "$totalPending Pengajuan Pending"
+                    },
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -195,7 +294,7 @@ private fun TuSummaryCard() {
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Pantau pengajuan, validasi berkas, dan tentukan dosen penguji.",
+                    text = "Data diambil langsung dari Supabase berdasarkan status menunggu_review.",
                     color = Color.White.copy(alpha = 0.92f),
                     fontSize = 12.sp,
                     lineHeight = 17.sp
