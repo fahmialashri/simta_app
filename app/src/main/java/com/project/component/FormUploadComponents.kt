@@ -52,7 +52,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -204,13 +203,14 @@ fun AppTextField(
             minLines = minLines,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = if (minLines > 1) 78.dp else 48.dp),
+                .heightIn(min = if (minLines > 1) 78.dp else 56.dp),
             placeholder = {
                 if (placeholder.isNotBlank()) {
                     Text(
                         text = placeholder,
                         fontSize = 11.sp,
-                        color = MutedText
+                        color = MutedText,
+                        lineHeight = 14.sp
                     )
                 }
             },
@@ -222,6 +222,7 @@ fun AppTextField(
                 disabledContainerColor = FieldBackground,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
                 cursorColor = PrimaryRed
             )
         )
@@ -236,37 +237,48 @@ fun AppDropdownField(
     value: String,
     options: List<String>,
     onSelect: (String) -> Unit,
-    required: Boolean = true
+    required: Boolean = true,
+    enabled: Boolean = true,
+    emptyText: String = "Data belum tersedia"
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val canOpen = enabled && options.isNotEmpty()
 
     Column(modifier = Modifier.fillMaxWidth()) {
         FieldLabel(label = label, required = required)
 
         ExposedDropdownMenuBox(
             expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
+            onExpandedChange = {
+                if (canOpen) {
+                    expanded = !expanded
+                }
+            }
         ) {
             TextField(
                 value = value,
                 onValueChange = {},
                 readOnly = true,
+                enabled = enabled,
+                singleLine = true,
                 modifier = Modifier
                     .menuAnchor()
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = 56.dp),
                 placeholder = {
                     Text(
-                        text = placeholder,
+                        text = if (options.isEmpty() && enabled) emptyText else placeholder,
                         color = MutedText,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        lineHeight = 14.sp,
+                        maxLines = 1
                     )
                 },
                 trailingIcon = {
                     Icon(
                         imageVector = Icons.Default.ExpandMore,
                         contentDescription = null,
-                        tint = Color(0xFF777777)
+                        tint = if (canOpen) Color(0xFF777777) else Color(0xFFBDBDBD)
                     )
                 },
                 textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
@@ -277,13 +289,15 @@ fun AppDropdownField(
                     disabledContainerColor = FieldBackground,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
                     cursorColor = PrimaryRed
                 )
             )
 
             ExposedDropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.exposedDropdownSize(matchTextFieldWidth = true)
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(

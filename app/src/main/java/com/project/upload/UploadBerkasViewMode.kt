@@ -35,21 +35,29 @@ class UploadBerkasViewModel : ViewModel() {
         files: Map<String, Uri>
     ) {
         if (userId.isNullOrBlank()) {
-            _uiState.value = UploadBerkasUiState(
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                isSuccess = false,
                 errorMessage = "User belum login."
             )
             return
         }
 
         if (files.isEmpty()) {
-            _uiState.value = UploadBerkasUiState(
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                isSuccess = false,
                 errorMessage = "Belum ada file yang dipilih."
             )
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = UploadBerkasUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                isSuccess = false,
+                errorMessage = null
+            )
 
             val result = repository.uploadMultipleDocuments(
                 context = context,
@@ -59,12 +67,16 @@ class UploadBerkasViewModel : ViewModel() {
             )
 
             if (result.isSuccess) {
-                _uiState.value = UploadBerkasUiState(
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
                     isSuccess = true,
-                    uploadedCount = result.getOrThrow().size
+                    uploadedCount = result.getOrThrow().size,
+                    errorMessage = null
                 )
             } else {
-                _uiState.value = UploadBerkasUiState(
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSuccess = false,
                     errorMessage = result.exceptionOrNull()?.message
                         ?: "Gagal upload berkas."
                 )
@@ -88,28 +100,38 @@ class UploadBerkasViewModel : ViewModel() {
         files: Map<String, Uri>
     ) {
         if (userId.isNullOrBlank()) {
-            _uiState.value = UploadBerkasUiState(
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                isSuccess = false,
                 errorMessage = "User belum terbaca. Silakan login ulang."
             )
             return
         }
 
         if (stage.isBlank()) {
-            _uiState.value = UploadBerkasUiState(
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                isSuccess = false,
                 errorMessage = "Tahap pendaftaran tidak valid."
             )
             return
         }
 
         if (files.isEmpty()) {
-            _uiState.value = UploadBerkasUiState(
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                isSuccess = false,
                 errorMessage = "Belum ada file yang dipilih."
             )
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = UploadBerkasUiState(isLoading = true)
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                isSuccess = false,
+                errorMessage = null
+            )
 
             val result = repository.submitThesisRegistration(
                 context = context,
@@ -128,12 +150,19 @@ class UploadBerkasViewModel : ViewModel() {
             )
 
             if (result.isSuccess) {
-                _uiState.value = UploadBerkasUiState(
+                val updatedSubmissions = repository.getSubmissionsByStudentId(userId)
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
                     isSuccess = true,
-                    uploadedCount = files.size
+                    uploadedCount = files.size,
+                    submissions = updatedSubmissions,
+                    errorMessage = null
                 )
             } else {
-                _uiState.value = UploadBerkasUiState(
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSuccess = false,
                     errorMessage = result.exceptionOrNull()?.message
                         ?: "Gagal mengirim pendaftaran."
                 )
@@ -146,6 +175,7 @@ class UploadBerkasViewModel : ViewModel() {
             try {
                 _uiState.value = _uiState.value.copy(
                     isLoading = true,
+                    isSuccess = false,
                     errorMessage = null
                 )
 
@@ -165,11 +195,47 @@ class UploadBerkasViewModel : ViewModel() {
         }
     }
 
+    fun loadMySubmissions(
+        userId: String?
+    ) {
+        if (userId.isNullOrBlank()) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = "User belum terbaca untuk mengambil notifikasi."
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    isSuccess = false,
+                    errorMessage = null
+                )
+
+                val submissions = repository.getSubmissionsByStudentId(userId)
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    submissions = submissions,
+                    errorMessage = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.message ?: "Gagal mengambil notifikasi berkas."
+                )
+            }
+        }
+    }
+
     fun loadPendingSubmissions() {
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(
                     isLoading = true,
+                    isSuccess = false,
                     errorMessage = null
                 )
 
@@ -194,6 +260,7 @@ class UploadBerkasViewModel : ViewModel() {
             try {
                 _uiState.value = _uiState.value.copy(
                     isLoading = true,
+                    isSuccess = false,
                     errorMessage = null
                 )
 
@@ -221,6 +288,7 @@ class UploadBerkasViewModel : ViewModel() {
             try {
                 _uiState.value = _uiState.value.copy(
                     isLoading = true,
+                    isSuccess = false,
                     errorMessage = null
                 )
 
@@ -257,6 +325,7 @@ class UploadBerkasViewModel : ViewModel() {
             try {
                 _uiState.value = _uiState.value.copy(
                     isLoading = true,
+                    isSuccess = false,
                     errorMessage = null
                 )
 
@@ -286,6 +355,18 @@ class UploadBerkasViewModel : ViewModel() {
     }
 
     fun resetState() {
-        _uiState.value = UploadBerkasUiState()
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            isSuccess = false,
+            errorMessage = null,
+            uploadedCount = 0,
+            selectedDocuments = emptyList()
+        )
+    }
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(
+            errorMessage = null
+        )
     }
 }

@@ -358,6 +358,15 @@ private fun SupervisedStudentCard(
                         fontSize = 12.sp,
                         color = Color.DarkGray
                     )
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    Text(
+                        text = item.supervisorRole,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SimtaRed
+                    )
                 }
             }
 
@@ -394,7 +403,7 @@ private fun SupervisedStudentCard(
                 Spacer(modifier = Modifier.padding(horizontal = 4.dp))
 
                 Text(
-                    text = "Status: Mahasiswa Bimbingan",
+                    text = "Status: Mahasiswa Bimbingan ${item.supervisorRole}",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF4CAF50)

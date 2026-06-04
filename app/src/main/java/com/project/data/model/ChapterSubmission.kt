@@ -28,7 +28,16 @@ data class ChapterSubmission(
     @SerialName("drive_url")
     val driveUrl: String? = null,
 
-    val note: String? = null
+    val note: String? = null,
+
+    @SerialName("target_lecturer_id")
+    val targetLecturerId: Long? = null,
+
+    @SerialName("target_supervisor_role")
+    val targetSupervisorRole: String? = null,
+
+    @SerialName("created_at")
+    val createdAt: String? = null
 )
 
 @Serializable
@@ -54,5 +63,17 @@ data class ChapterSubmissionInsert(
     @SerialName("drive_url")
     val driveUrl: String? = null,
 
-    val note: String? = null
+    val note: String? = null,
+
+    @SerialName("target_lecturer_id")
+    val targetLecturerId: Long? = null,
+
+    @SerialName("target_supervisor_role")
+    val targetSupervisorRole: String? = null
+)
+
+data class BimbinganTargetLecturer(
+    val lecturerId: Long,
+    val lecturerName: String,
+    val supervisorRole: String
 )

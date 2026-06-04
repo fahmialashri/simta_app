@@ -2,10 +2,14 @@ package com.project.data.repository
 
 import com.project.BuildConfig
 import com.project.core.SupabaseClientProvider
+import com.project.data.model.BimbinganTargetLecturer
 import com.project.data.model.ChapterSubmission
 import com.project.data.model.ChapterSubmissionInsert
+import com.project.data.model.Lecturer
+import com.project.data.model.SupervisorRequest
 import com.project.data.model.ThesisChapter
 import com.project.data.model.ThesisChapterUpdate
+import com.project.data.model.ThesisSubmission
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
 import io.github.jan.supabase.storage.upload
@@ -44,6 +48,67 @@ class BimbinganRepository {
             }
             .decodeList<ChapterSubmission>()
             .sortedByDescending { it.id }
+    }
+
+    suspend fun getGuidanceTargets(
+        studentId: String,
+        supervisorRequestId: Long
+    ): List<BimbinganTargetLecturer> {
+        val result = mutableListOf<BimbinganTargetLecturer>()
+
+        val activeRequest = supabase
+            .from("supervisor_requests")
+            .select {
+                filter {
+                    eq("id", supervisorRequestId)
+                    eq("student_id", studentId)
+                }
+            }
+            .decodeList<SupervisorRequest>()
+            .firstOrNull()
+
+        if (activeRequest != null) {
+            val lecturer = getLecturerById(activeRequest.lecturerId)
+
+            if (lecturer != null) {
+                result.add(
+                    BimbinganTargetLecturer(
+                        lecturerId = lecturer.id,
+                        lecturerName = lecturer.fullName,
+                        supervisorRole = "Pembimbing 1"
+                    )
+                )
+            }
+        }
+
+        val latestSubmission = supabase
+            .from("thesis_submissions")
+            .select {
+                filter {
+                    eq("student_id", studentId)
+                }
+            }
+            .decodeList<ThesisSubmission>()
+            .sortedByDescending { it.createdAt.orEmpty() }
+            .firstOrNull { !it.supervisor2.isNullOrBlank() }
+
+        val supervisor2Name = latestSubmission?.supervisor2.orEmpty()
+
+        if (supervisor2Name.isNotBlank()) {
+            val supervisor2Lecturer = findLecturerByName(supervisor2Name)
+
+            if (supervisor2Lecturer != null) {
+                result.add(
+                    BimbinganTargetLecturer(
+                        lecturerId = supervisor2Lecturer.id,
+                        lecturerName = supervisor2Lecturer.fullName,
+                        supervisorRole = "Pembimbing 2"
+                    )
+                )
+            }
+        }
+
+        return result.distinctBy { it.lecturerId }
     }
 
     suspend fun uploadChapterFile(
@@ -86,7 +151,9 @@ class BimbinganRepository {
         filePath: String?,
         fileUrl: String?,
         driveUrl: String?,
-        note: String?
+        note: String?,
+        targetLecturerId: Long?,
+        targetSupervisorRole: String?
     ) {
         val payload = ChapterSubmissionInsert(
             chapterId = chapterId,
@@ -96,7 +163,9 @@ class BimbinganRepository {
             filePath = filePath,
             fileUrl = fileUrl,
             driveUrl = driveUrl,
-            note = note
+            note = note,
+            targetLecturerId = targetLecturerId,
+            targetSupervisorRole = targetSupervisorRole
         )
 
         supabase
@@ -119,6 +188,49 @@ class BimbinganRepository {
             }
     }
 
+    private suspend fun getLecturerById(
+        lecturerId: Long
+    ): Lecturer? {
+        return supabase
+            .from("lecturers")
+            .select {
+                filter {
+                    eq("id", lecturerId)
+                }
+            }
+            .decodeList<Lecturer>()
+            .firstOrNull()
+    }
+
+    private suspend fun findLecturerByName(
+        storedName: String
+    ): Lecturer? {
+        val normalizedStoredName = storedName.normalizeLecturerName()
+
+        if (normalizedStoredName.isBlank()) {
+            return null
+        }
+
+        return supabase
+            .from("lecturers")
+            .select()
+            .decodeList<Lecturer>()
+            .firstOrNull { lecturer ->
+                val lecturerNames = listOf(
+                    lecturer.name,
+                    lecturer.fullName,
+                    "${lecturer.name}, ${lecturer.title.orEmpty()}",
+                    "${lecturer.name} ${lecturer.title.orEmpty()}"
+                ).map { it.normalizeLecturerName() }
+
+                lecturerNames.any { normalizedLecturerName ->
+                    normalizedLecturerName == normalizedStoredName ||
+                            normalizedLecturerName.contains(normalizedStoredName) ||
+                            normalizedStoredName.contains(normalizedLecturerName)
+                }
+            }
+    }
+
     private fun buildPublicStorageUrl(path: String): String {
         val encodedPath = path
             .split("/")
@@ -130,4 +242,32 @@ class BimbinganRepository {
 
         return "${BuildConfig.SUPABASE_URL}/storage/v1/object/public/$bucketName/$encodedPath"
     }
+}
+
+private fun String.normalizeLecturerName(): String {
+    return trim()
+        .lowercase()
+        .replace(".", "")
+        .replace(",", "")
+        .replace("dr ", "")
+        .replace("drs ", "")
+        .replace("dra ", "")
+        .replace("ir ", "")
+        .replace("prof ", "")
+        .replace("s t", "")
+        .replace("st", "")
+        .replace("s si", "")
+        .replace("ssi", "")
+        .replace("s kom", "")
+        .replace("skom", "")
+        .replace("m kom", "")
+        .replace("mkom", "")
+        .replace("m si", "")
+        .replace("msi", "")
+        .replace("m t", "")
+        .replace("mt", "")
+        .replace("mpd", "")
+        .replace("phd", "")
+        .replace(Regex("\\s+"), " ")
+        .trim()
 }

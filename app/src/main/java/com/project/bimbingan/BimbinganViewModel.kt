@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project.data.model.BimbinganTargetLecturer
 import com.project.data.model.ChapterSubmission
 import com.project.data.model.ThesisChapter
 import com.project.data.repository.BimbinganRepository
@@ -15,6 +16,7 @@ data class BimbinganUiState(
     val isLoading: Boolean = false,
     val chapters: List<ThesisChapter> = emptyList(),
     val submissions: List<ChapterSubmission> = emptyList(),
+    val targetLecturers: List<BimbinganTargetLecturer> = emptyList(),
     val errorMessage: String? = null,
     val successMessage: String? = null
 )
@@ -49,9 +51,15 @@ class BimbinganViewModel : ViewModel() {
                     supervisorRequestId = supervisorRequestId
                 )
 
+                val targets = repository.getGuidanceTargets(
+                    studentId = studentId,
+                    supervisorRequestId = supervisorRequestId
+                )
+
                 _uiState.value = BimbinganUiState(
                     isLoading = false,
-                    chapters = chapters
+                    chapters = chapters,
+                    targetLecturers = targets
                 )
             } catch (e: Exception) {
                 _uiState.value = BimbinganUiState(
@@ -79,6 +87,33 @@ class BimbinganViewModel : ViewModel() {
         }
     }
 
+    fun loadGuidanceTargets(
+        studentId: String?,
+        supervisorRequestId: Long?
+    ) {
+        viewModelScope.launch {
+            try {
+                if (studentId.isNullOrBlank() || supervisorRequestId == null) {
+                    return@launch
+                }
+
+                val targets = repository.getGuidanceTargets(
+                    studentId = studentId,
+                    supervisorRequestId = supervisorRequestId
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    targetLecturers = targets,
+                    errorMessage = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = e.message ?: "Gagal mengambil data dosen tujuan."
+                )
+            }
+        }
+    }
+
     fun submitChapter(
         context: Context,
         studentId: String?,
@@ -88,13 +123,22 @@ class BimbinganViewModel : ViewModel() {
         fileName: String?,
         mimeType: String?,
         driveUrl: String?,
-        note: String?
+        note: String?,
+        targetLecturerId: Long?,
+        targetSupervisorRole: String?
     ) {
         viewModelScope.launch {
             try {
                 if (studentId.isNullOrBlank() || supervisorRequestId == null) {
                     _uiState.value = _uiState.value.copy(
                         errorMessage = "User atau data pengajuan belum valid."
+                    )
+                    return@launch
+                }
+
+                if (targetLecturerId == null || targetSupervisorRole.isNullOrBlank()) {
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Pilih dosen tujuan bimbingan terlebih dahulu."
                     )
                     return@launch
                 }
@@ -145,17 +189,21 @@ class BimbinganViewModel : ViewModel() {
                     filePath = uploadedFilePath,
                     fileUrl = uploadedFileUrl,
                     driveUrl = driveUrl?.trim()?.ifBlank { null },
-                    note = note?.trim()?.ifBlank { null }
+                    note = note?.trim()?.ifBlank { null },
+                    targetLecturerId = targetLecturerId,
+                    targetSupervisorRole = targetSupervisorRole
                 )
 
                 val chapters = repository.getChapters(studentId, supervisorRequestId)
                 val submissions = repository.getSubmissions(chapterId)
+                val targets = repository.getGuidanceTargets(studentId, supervisorRequestId)
 
                 _uiState.value = BimbinganUiState(
                     isLoading = false,
                     chapters = chapters,
                     submissions = submissions,
-                    successMessage = "Dokumen bimbingan berhasil dikirim."
+                    targetLecturers = targets,
+                    successMessage = "Dokumen bimbingan berhasil dikirim ke $targetSupervisorRole."
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

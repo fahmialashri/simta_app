@@ -43,6 +43,7 @@ import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
 import com.project.component.UploadPageAlert
 import com.project.core.SimtaYellow
+import com.project.lecturer.LecturerViewModel
 import com.project.navigation.Screen
 import com.project.upload.UploadBerkasViewModel
 
@@ -50,12 +51,14 @@ import com.project.upload.UploadBerkasViewModel
 fun UploadRevisiKolokiumScreen(
     navController: NavHostController,
     authViewModel: AuthViewModel,
-    uploadBerkasViewModel: UploadBerkasViewModel
+    uploadBerkasViewModel: UploadBerkasViewModel,
+    lecturerViewModel: LecturerViewModel
 ) {
     val context = LocalContext.current
 
     val authState by authViewModel.uiState.collectAsState()
     val uploadState by uploadBerkasViewModel.uiState.collectAsState()
+    val lecturerState by lecturerViewModel.uiState.collectAsState()
 
     var nama by remember { mutableStateOf(authState.name.orEmpty()) }
     var npm by remember { mutableStateOf(authState.nim.orEmpty()) }
@@ -68,12 +71,54 @@ fun UploadRevisiKolokiumScreen(
     var judulEnglish by remember { mutableStateOf("") }
     var isDraftSaved by remember { mutableStateOf(false) }
 
-    val selectedFileNames = remember {
-        mutableStateMapOf<String, String>()
+    val selectedFileNames = remember { mutableStateMapOf<String, String>() }
+    val selectedFileUris = remember { mutableStateMapOf<String, Uri>() }
+
+    val lecturerOptions = remember(lecturerState.lecturers) {
+        lecturerState.lecturers
+            .filter { it.isActive }
+            .map { it.fullName }
+            .distinct()
     }
 
-    val selectedFileUris = remember {
-        mutableStateMapOf<String, Uri>()
+    val pembimbing1Options = remember(lecturerOptions, pembimbing2, penguji1, penguji2) {
+        lecturerOptions.filter {
+            it != pembimbing2 &&
+                    it != penguji1 &&
+                    it != penguji2
+        }
+    }
+
+    val pembimbing2Options = remember(lecturerOptions, pembimbing1, penguji1, penguji2) {
+        lecturerOptions.filter {
+            it != pembimbing1 &&
+                    it != penguji1 &&
+                    it != penguji2
+        }
+    }
+
+    val penguji1Options = remember(lecturerOptions, pembimbing1, pembimbing2, penguji2) {
+        lecturerOptions.filter {
+            it != pembimbing1 &&
+                    it != pembimbing2 &&
+                    it != penguji2
+        }
+    }
+
+    val penguji2Options = remember(lecturerOptions, pembimbing1, pembimbing2, penguji1) {
+        lecturerOptions.filter {
+            it != pembimbing1 &&
+                    it != pembimbing2 &&
+                    it != penguji1
+        }
+    }
+
+    val dropdownEmptyText = if (authState.departmentId == null) {
+        "Program studi belum ditemukan"
+    } else if (lecturerState.isLoading) {
+        "Memuat data dosen..."
+    } else {
+        "Data dosen belum tersedia"
     }
 
     val documents = remember {
@@ -124,6 +169,10 @@ fun UploadRevisiKolokiumScreen(
                 documents.all { selectedFileUris.containsKey(it.key) } &&
                 !uploadState.isLoading
 
+    LaunchedEffect(authState.departmentId) {
+        lecturerViewModel.loadLecturersByDepartment(authState.departmentId)
+    }
+
     LaunchedEffect(authState.name, authState.nim) {
         if (nama.isBlank()) {
             nama = authState.name.orEmpty()
@@ -131,6 +180,38 @@ fun UploadRevisiKolokiumScreen(
 
         if (npm.isBlank()) {
             npm = authState.nim.orEmpty()
+        }
+    }
+
+    LaunchedEffect(lecturerOptions) {
+        if (pembimbing1.isNotBlank() && pembimbing1 !in lecturerOptions) {
+            pembimbing1 = ""
+        }
+
+        if (pembimbing2.isNotBlank() && pembimbing2 !in lecturerOptions) {
+            pembimbing2 = ""
+        }
+
+        if (penguji1.isNotBlank() && penguji1 !in lecturerOptions) {
+            penguji1 = ""
+        }
+
+        if (penguji2.isNotBlank() && penguji2 !in lecturerOptions) {
+            penguji2 = ""
+        }
+    }
+
+    LaunchedEffect(pembimbing1, pembimbing2, penguji1, penguji2) {
+        if (pembimbing1.isNotBlank() && pembimbing1 == pembimbing2) {
+            pembimbing2 = ""
+        }
+
+        if (penguji1.isNotBlank() && penguji1 in listOf(pembimbing1, pembimbing2)) {
+            penguji1 = ""
+        }
+
+        if (penguji2.isNotBlank() && penguji2 in listOf(pembimbing1, pembimbing2, penguji1)) {
+            penguji2 = ""
         }
     }
 
@@ -206,33 +287,41 @@ fun UploadRevisiKolokiumScreen(
 
                     AppDropdownField(
                         label = "Pembimbing 1",
-                        placeholder = "-- Pilih dosen pembimbing 1 --",
+                        placeholder = "Pilih dosen pembimbing 1",
                         value = pembimbing1,
-                        options = sampleLecturersRevisiKolokium(),
+                        options = pembimbing1Options,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
                         onSelect = { pembimbing1 = it }
                     )
 
                     AppDropdownField(
                         label = "Pembimbing 2",
-                        placeholder = "-- Pilih dosen pembimbing 2 --",
+                        placeholder = "Pilih dosen pembimbing 2",
                         value = pembimbing2,
-                        options = sampleLecturersRevisiKolokium(),
+                        options = pembimbing2Options,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
                         onSelect = { pembimbing2 = it }
                     )
 
                     AppDropdownField(
                         label = "Penguji 1",
-                        placeholder = "-- Pilih dosen penguji 1 --",
+                        placeholder = "Pilih dosen penguji 1",
                         value = penguji1,
-                        options = sampleExaminersRevisiKolokium(),
+                        options = penguji1Options,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
                         onSelect = { penguji1 = it }
                     )
 
                     AppDropdownField(
                         label = "Penguji 2",
-                        placeholder = "-- Pilih dosen penguji 2 --",
+                        placeholder = "Pilih dosen penguji 2",
                         value = penguji2,
-                        options = sampleExaminersRevisiKolokium(),
+                        options = penguji2Options,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
                         onSelect = { penguji2 = it }
                     )
 
@@ -368,22 +457,4 @@ fun UploadRevisiKolokiumScreen(
             }
         }
     }
-}
-
-private fun sampleLecturersRevisiKolokium(): List<String> {
-    return listOf(
-        "Dr. Dosen Pembimbing 1",
-        "Dr. Dosen Pembimbing 2",
-        "Dr. Dosen Pembimbing 3",
-        "Dr. Dosen Pembimbing 4"
-    )
-}
-
-private fun sampleExaminersRevisiKolokium(): List<String> {
-    return listOf(
-        "Dr. Dosen Penguji 1",
-        "Dr. Dosen Penguji 2",
-        "Dr. Dosen Penguji 3",
-        "Dr. Dosen Penguji 4"
-    )
 }

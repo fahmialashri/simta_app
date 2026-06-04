@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,6 +39,7 @@ import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
 import com.project.component.UploadPageAlert
 import com.project.core.SimtaYellow
+import com.project.lecturer.LecturerViewModel
 import com.project.navigation.Screen
 import com.project.upload.UploadBerkasViewModel
 
@@ -47,39 +47,50 @@ import com.project.upload.UploadBerkasViewModel
 fun PendaftaranSeminarProposalFormScreen(
     navController: NavHostController,
     authViewModel: AuthViewModel,
-    uploadBerkasViewModel: UploadBerkasViewModel
+    uploadBerkasViewModel: UploadBerkasViewModel,
+    lecturerViewModel: LecturerViewModel
 ) {
     val context = LocalContext.current
 
     val authState by authViewModel.uiState.collectAsState()
     val uploadState by uploadBerkasViewModel.uiState.collectAsState()
+    val lecturerState by lecturerViewModel.uiState.collectAsState()
 
-    var email by remember { mutableStateOf(authState.email.orEmpty()) }
-    var namaLengkap by remember { mutableStateOf(authState.name.orEmpty()) }
+    var nama by remember { mutableStateOf(authState.name.orEmpty()) }
     var npm by remember { mutableStateOf(authState.nim.orEmpty()) }
-    var judulProposal by remember { mutableStateOf("") }
     var nomorHp by remember { mutableStateOf("") }
-    var pembimbing by remember { mutableStateOf("") }
+    var pembimbingProposal by remember { mutableStateOf("") }
+    var judulProposal by remember { mutableStateOf("") }
 
     val selectedFileNames = remember { mutableStateMapOf<String, String>() }
     val selectedFileUris = remember { mutableStateMapOf<String, Uri>() }
 
+    val lecturerOptions = remember(lecturerState.lecturers) {
+        lecturerState.lecturers
+            .filter { it.isActive }
+            .map { it.fullName }
+            .distinct()
+    }
+
+    val dropdownEmptyText = if (authState.departmentId == null) {
+        "Program studi belum ditemukan"
+    } else if (lecturerState.isLoading) {
+        "Memuat data dosen..."
+    } else {
+        "Data dosen belum tersedia"
+    }
+
     val documents = remember {
         listOf(
             UploadFileItem(
-                key = "bukti_lunas_ukt",
-                title = "Bukti Lunas Administrasi (UKT)",
+                key = "krs_pengambilan_skripsi",
+                title = "Bukti KRS Pengambilan Skripsi",
                 description = "Format PDF atau gambar, maks. 10 MB"
             ),
             UploadFileItem(
-                key = "krs_pengambilan_skripsi",
-                title = "KRS Pengambilan Skripsi",
-                description = "Telah ditandatangani dosen wali / pembimbing"
-            ),
-            UploadFileItem(
-                key = "file_proposal_skripsi",
+                key = "proposal_skripsi",
                 title = "File Proposal Skripsi",
-                description = "Cover sampai daftar pustaka, format NASKAH_Proposal_npm",
+                description = "Format PDF atau Word (.pdf / .doc / .docx), maks. 10 MB",
                 mimeTypes = listOf(
                     "application/pdf",
                     "application/msword",
@@ -89,40 +100,38 @@ fun PendaftaranSeminarProposalFormScreen(
             UploadFileItem(
                 key = "bukti_persetujuan_pembimbing",
                 title = "Bukti Persetujuan Pembimbing",
-                description = "Screenshot chat WA, email, atau bukti persetujuan"
-            ),
-            UploadFileItem(
-                key = "bebas_plagiarisme_bab_1",
-                title = "Bukti Plagiarisme BAB 1",
-                description = "Upload bukti hasil plagiarisme BAB 1"
-            ),
-            UploadFileItem(
-                key = "bebas_plagiarisme_bab_2",
-                title = "Bukti Plagiarisme BAB 2",
-                description = "Upload bukti hasil plagiarisme BAB 2"
-            ),
-            UploadFileItem(
-                key = "bebas_plagiarisme_bab_3",
-                title = "Bukti Plagiarisme BAB 3",
-                description = "Upload bukti hasil plagiarisme BAB 3"
+                description = "Screenshot chat, email, atau bukti persetujuan pembimbing"
             )
         )
     }
 
     val isValid =
-        email.isNotBlank() &&
-                namaLengkap.isNotBlank() &&
+        nama.isNotBlank() &&
                 npm.isNotBlank() &&
-                judulProposal.isNotBlank() &&
                 nomorHp.isNotBlank() &&
-                pembimbing.isNotBlank() &&
+                pembimbingProposal.isNotBlank() &&
+                judulProposal.isNotBlank() &&
                 documents.all { selectedFileUris.containsKey(it.key) } &&
                 !uploadState.isLoading
 
-    LaunchedEffect(authState.email, authState.name, authState.nim) {
-        if (email.isBlank()) email = authState.email.orEmpty()
-        if (namaLengkap.isBlank()) namaLengkap = authState.name.orEmpty()
-        if (npm.isBlank()) npm = authState.nim.orEmpty()
+    LaunchedEffect(authState.departmentId) {
+        lecturerViewModel.loadLecturersByDepartment(authState.departmentId)
+    }
+
+    LaunchedEffect(authState.name, authState.nim) {
+        if (nama.isBlank()) {
+            nama = authState.name.orEmpty()
+        }
+
+        if (npm.isBlank()) {
+            npm = authState.nim.orEmpty()
+        }
+    }
+
+    LaunchedEffect(lecturerOptions) {
+        if (pembimbingProposal.isNotBlank() && pembimbingProposal !in lecturerOptions) {
+            pembimbingProposal = ""
+        }
     }
 
     LaunchedEffect(uploadState.isSuccess) {
@@ -158,7 +167,9 @@ fun PendaftaranSeminarProposalFormScreen(
         topBar = {
             FormTopBar(
                 title = "Pendaftaran Seminar Proposal",
-                onBackClick = { navController.popBackStack() }
+                onBackClick = {
+                    navController.popBackStack()
+                }
             )
         }
     ) { padding ->
@@ -177,13 +188,13 @@ fun PendaftaranSeminarProposalFormScreen(
         ) {
             item {
                 UploadPageAlert(
-                    text = "Lengkapi semua data dan unggah berkas yang diminta sebelum daftar."
+                    text = "Form pendaftaran seminar proposal. Pastikan proposal sudah disetujui oleh dosen pembimbing."
                 )
             }
 
             item {
                 SectionTitle(
-                    icon = Icons.Rounded.Edit,
+                    icon = Icons.Rounded.UploadFile,
                     title = "Data Diri"
                 )
             }
@@ -191,16 +202,10 @@ fun PendaftaranSeminarProposalFormScreen(
             item {
                 FormCard {
                     AppTextField(
-                        label = "Email",
-                        value = email,
-                        onValueChange = { email = it }
-                    )
-
-                    AppTextField(
                         label = "Nama Lengkap",
-                        placeholder = "Sesuai KTP. Contoh: Zerta Dwi Putra",
-                        value = namaLengkap,
-                        onValueChange = { namaLengkap = it }
+                        placeholder = "Nama lengkap mahasiswa",
+                        value = nama,
+                        onValueChange = { nama = it }
                     )
 
                     AppTextField(
@@ -211,26 +216,10 @@ fun PendaftaranSeminarProposalFormScreen(
                     )
 
                     AppTextField(
-                        label = "Judul Proposal Penelitian",
-                        placeholder = "Tulis judul proposal penelitian...",
-                        value = judulProposal,
-                        minLines = 3,
-                        onValueChange = { judulProposal = it }
-                    )
-
-                    AppTextField(
                         label = "Nomor Handphone",
-                        placeholder = "Gunakan 62 sebagai pengganti 0. Contoh: 628123456789",
+                        placeholder = "Contoh: 628123456789",
                         value = nomorHp,
                         onValueChange = { nomorHp = it }
-                    )
-
-                    AppDropdownField(
-                        label = "Pembimbing Proposal",
-                        placeholder = "-- Pilih dosen pembimbing --",
-                        value = pembimbing,
-                        options = sampleLecturersSempro(),
-                        onSelect = { pembimbing = it }
                     )
                 }
             }
@@ -238,7 +227,36 @@ fun PendaftaranSeminarProposalFormScreen(
             item {
                 SectionTitle(
                     icon = Icons.Rounded.UploadFile,
-                    title = "Berkas Lampiran"
+                    title = "Data Proposal"
+                )
+            }
+
+            item {
+                FormCard {
+                    AppTextField(
+                        label = "Judul Proposal Skripsi",
+                        placeholder = "Tulis judul proposal skripsi...",
+                        value = judulProposal,
+                        minLines = 3,
+                        onValueChange = { judulProposal = it }
+                    )
+
+                    AppDropdownField(
+                        label = "Pembimbing Proposal",
+                        placeholder = "Pilih dosen pembimbing proposal",
+                        value = pembimbingProposal,
+                        options = lecturerOptions,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
+                        onSelect = { pembimbingProposal = it }
+                    )
+                }
+            }
+
+            item {
+                SectionTitle(
+                    icon = Icons.Rounded.UploadFile,
+                    title = "Berkas Pendaftaran"
                 )
             }
 
@@ -266,12 +284,12 @@ fun PendaftaranSeminarProposalFormScreen(
                             context = context,
                             userId = authState.userId,
                             stage = "seminar_proposal",
-                            studentName = namaLengkap.trim(),
+                            studentName = nama.trim(),
                             nim = npm.trim(),
                             phone = nomorHp.trim(),
                             title = judulProposal.trim(),
                             titleEnglish = null,
-                            supervisor1 = pembimbing.trim(),
+                            supervisor1 = pembimbingProposal.trim(),
                             supervisor2 = null,
                             examiner1 = null,
                             examiner2 = null,
@@ -292,20 +310,11 @@ fun PendaftaranSeminarProposalFormScreen(
                         text = if (uploadState.isLoading) {
                             "Mengirim..."
                         } else {
-                            "Kirim Pendaftaran"
+                            "Daftar Seminar Proposal"
                         }
                     )
                 }
             }
         }
     }
-}
-
-private fun sampleLecturersSempro(): List<String> {
-    return listOf(
-        "Dr. Dosen Pembimbing 1",
-        "Dr. Dosen Pembimbing 2",
-        "Dr. Dosen Pembimbing 3",
-        "Dr. Dosen Pembimbing 4"
-    )
 }

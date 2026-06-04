@@ -114,7 +114,8 @@ fun AppNavGraph() {
             MahasiswaDashboardScreen(
                 navController = navController,
                 authViewModel = authViewModel,
-                supervisorRequestViewModel = supervisorRequestViewModel
+                supervisorRequestViewModel = supervisorRequestViewModel,
+                uploadBerkasViewModel = uploadBerkasViewModel
             )
         }
 
@@ -134,7 +135,8 @@ fun AppNavGraph() {
             PendaftaranSeminarProposalFormScreen(
                 navController = navController,
                 authViewModel = authViewModel,
-                uploadBerkasViewModel = uploadBerkasViewModel
+                uploadBerkasViewModel = uploadBerkasViewModel,
+                lecturerViewModel = lecturerViewModel
             )
         }
 
@@ -142,7 +144,8 @@ fun AppNavGraph() {
             UploadRevisiSeminarProposalScreen(
                 navController = navController,
                 authViewModel = authViewModel,
-                uploadBerkasViewModel = uploadBerkasViewModel
+                uploadBerkasViewModel = uploadBerkasViewModel,
+                lecturerViewModel = lecturerViewModel
             )
         }
 
@@ -158,7 +161,8 @@ fun AppNavGraph() {
             PendaftaranKolokiumFormScreen(
                 navController = navController,
                 authViewModel = authViewModel,
-                uploadBerkasViewModel = uploadBerkasViewModel
+                uploadBerkasViewModel = uploadBerkasViewModel,
+                lecturerViewModel = lecturerViewModel
             )
         }
 
@@ -166,7 +170,8 @@ fun AppNavGraph() {
             UploadRevisiKolokiumScreen(
                 navController = navController,
                 authViewModel = authViewModel,
-                uploadBerkasViewModel = uploadBerkasViewModel
+                uploadBerkasViewModel = uploadBerkasViewModel,
+                lecturerViewModel = lecturerViewModel
             )
         }
 
@@ -174,7 +179,8 @@ fun AppNavGraph() {
             PendaftaranYudisiumFormScreen(
                 navController = navController,
                 authViewModel = authViewModel,
-                uploadBerkasViewModel = uploadBerkasViewModel
+                uploadBerkasViewModel = uploadBerkasViewModel,
+                lecturerViewModel = lecturerViewModel
             )
         }
 
@@ -201,7 +207,8 @@ fun AppNavGraph() {
                 navController = navController,
                 stage = stage,
                 authViewModel = authViewModel,
-                uploadBerkasViewModel = uploadBerkasViewModel
+                uploadBerkasViewModel = uploadBerkasViewModel,
+                lecturerViewModel = lecturerViewModel
             )
         }
 
@@ -243,6 +250,7 @@ fun AppNavGraph() {
         composable(Screen.KaprodiDashboard.route) {
             KaprodiDashboardScreen(
                 navController = navController,
+                authViewModel = authViewModel,
                 onLogout = {
                     authViewModel.logout()
 

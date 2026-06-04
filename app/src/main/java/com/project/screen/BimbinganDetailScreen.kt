@@ -7,6 +7,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,6 +70,7 @@ import com.project.auth.AuthViewModel
 import com.project.bimbingan.BimbinganViewModel
 import com.project.core.SimtaGreen
 import com.project.core.SimtaRed
+import com.project.data.model.BimbinganTargetLecturer
 import com.project.data.model.ChapterSubmission
 import com.project.navigation.Screen
 import com.project.supervisor.SupervisorRequestViewModel
@@ -93,6 +95,7 @@ fun BimbinganDetailScreen(
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
     var selectedMimeType by remember { mutableStateOf<String?>(null) }
+    var selectedTarget by remember { mutableStateOf<BimbinganTargetLecturer?>(null) }
 
     var driveUrl by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
@@ -112,8 +115,25 @@ fun BimbinganDetailScreen(
         bimbinganViewModel.loadSubmissions(chapterId)
     }
 
+    LaunchedEffect(authState.userId, request?.id) {
+        bimbinganViewModel.loadGuidanceTargets(
+            studentId = authState.userId,
+            supervisorRequestId = request?.id
+        )
+    }
+
+    LaunchedEffect(bimbinganState.targetLecturers) {
+        if (selectedTarget == null && bimbinganState.targetLecturers.isNotEmpty()) {
+            selectedTarget = bimbinganState.targetLecturers.first()
+        }
+
+        if (selectedTarget != null && bimbinganState.targetLecturers.none { it.lecturerId == selectedTarget?.lecturerId }) {
+            selectedTarget = bimbinganState.targetLecturers.firstOrNull()
+        }
+    }
+
     Scaffold(
-        containerColor = Color(0xFFF8F9FA), // Background abu-abu muda
+        containerColor = Color(0xFFF8F9FA),
         bottomBar = {
             DetailBottomNavigation(
                 onHomeClick = {
@@ -142,7 +162,6 @@ fun BimbinganDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 24.dp)
         ) {
-            // Modern Header Section
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -170,6 +189,7 @@ fun BimbinganDetailScreen(
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.Black
                     )
+
                     Text(
                         text = chapter?.title ?: "BAB",
                         fontSize = 12.sp,
@@ -194,12 +214,14 @@ fun BimbinganDetailScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Main Upload & Interaction Card
             UploadCard(
                 selectedFileName = selectedFileName,
                 driveUrl = driveUrl,
                 note = note,
                 lecturerNote = chapter?.lecturerNote,
+                targets = bimbinganState.targetLecturers,
+                selectedTarget = selectedTarget,
+                onTargetSelect = { selectedTarget = it },
                 onChooseFile = {
                     filePicker.launch(
                         arrayOf(
@@ -221,16 +243,18 @@ fun BimbinganDetailScreen(
                         fileName = selectedFileName,
                         mimeType = selectedMimeType,
                         driveUrl = driveUrl,
-                        note = note
+                        note = note,
+                        targetLecturerId = selectedTarget?.lecturerId,
+                        targetSupervisorRole = selectedTarget?.supervisorRole
                     )
                 }
             )
 
-            // Pesan Status (Error/Success)
             if (bimbinganState.errorMessage != null || bimbinganState.successMessage != null) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 val isError = bimbinganState.errorMessage != null
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -249,7 +273,6 @@ fun BimbinganDetailScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Log Files Section
             LogFilesCard(
                 submissions = bimbinganState.submissions,
                 onOpenUrl = { url ->
@@ -257,7 +280,7 @@ fun BimbinganDetailScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(32.dp)) // Extra padding bawah
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -268,6 +291,9 @@ private fun UploadCard(
     driveUrl: String,
     note: String,
     lecturerNote: String?,
+    targets: List<BimbinganTargetLecturer>,
+    selectedTarget: BimbinganTargetLecturer?,
+    onTargetSelect: (BimbinganTargetLecturer) -> Unit,
     onChooseFile: () -> Unit,
     onDriveUrlChange: (String) -> Unit,
     onNoteChange: (String) -> Unit,
@@ -284,7 +310,44 @@ private fun UploadCard(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            // Area Drop/Pilih File
+            Text(
+                text = "Kirim ke Dosen",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (targets.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFFEBEE))
+                        .padding(14.dp)
+                ) {
+                    Text(
+                        text = "Data dosen tujuan belum tersedia. Pastikan pengajuan pembimbing sudah disetujui dan data pembimbing 2 sudah tercatat.",
+                        color = SimtaRed,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+            } else {
+                targets.forEach { target ->
+                    TargetLecturerItem(
+                        target = target,
+                        selected = selectedTarget?.lecturerId == target.lecturerId,
+                        onClick = { onTargetSelect(target) }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -339,13 +402,12 @@ private fun UploadCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Highlight Komentar Dosen
             if (!lecturerNote.isNullOrBlank()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFFFF8E1)) // Warna kuning super tipis buat highlight
+                        .background(Color(0xFFFFF8E1))
                         .padding(16.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -355,7 +417,9 @@ private fun UploadCard(
                             tint = Color(0xFFF57F17),
                             modifier = Modifier.size(18.dp)
                         )
+
                         Spacer(modifier = Modifier.width(8.dp))
+
                         Text(
                             text = "Komentar Dosen Pembimbing",
                             fontWeight = FontWeight.Bold,
@@ -384,7 +448,9 @@ private fun UploadCard(
                     tint = Color.Black,
                     modifier = Modifier.size(18.dp)
                 )
+
                 Spacer(modifier = Modifier.width(8.dp))
+
                 Text(
                     text = "Tulis Catatan / Balasan",
                     fontWeight = FontWeight.Bold,
@@ -419,20 +485,89 @@ private fun UploadCard(
 
             Button(
                 onClick = onSubmit,
+                enabled = selectedTarget != null,
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = SimtaRed),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SimtaRed,
+                    disabledContainerColor = Color.LightGray
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
                 Text(
-                    text = "Kirim Pembaruan",
+                    text = if (selectedTarget == null) "Pilih Dosen Tujuan" else "Kirim Pembaruan",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TargetLecturerItem(
+    target: BimbinganTargetLecturer,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (selected) SimtaRed else Color(0xFFE0E0E0)
+    val backgroundColor = if (selected) SimtaRed.copy(alpha = 0.08f) else Color(0xFFFAFAFA)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .border(
+                width = 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(if (selected) SimtaRed else Color(0xFFE8EAED)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = if (selected) Color.White else Color.Gray,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = target.lecturerName,
+                color = Color.Black,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+
+            Text(
+                text = target.supervisorRole,
+                color = if (selected) SimtaRed else Color.DarkGray,
+                fontWeight = FontWeight.Medium,
+                fontSize = 11.sp
+            )
+        }
+
+        Text(
+            text = if (selected) "Dipilih" else "Pilih",
+            color = if (selected) SimtaRed else Color.Gray,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp
+        )
     }
 }
 
@@ -473,6 +608,7 @@ private fun LogFilesCard(
                     submission = submission,
                     onOpenUrl = onOpenUrl
                 )
+
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
@@ -525,6 +661,16 @@ private fun LogFileItem(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
+                    text = submission.targetSupervisorRole ?: "Dosen tujuan belum tercatat",
+                    fontSize = 10.sp,
+                    color = SimtaRed,
+                    maxLines = 1,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
                     text = submission.note ?: "Tidak ada catatan",
                     fontSize = 11.sp,
                     color = Color.Gray,
@@ -539,6 +685,7 @@ private fun LogFileItem(
                     .background(SimtaRed.copy(alpha = 0.1f))
                     .clickable {
                         val url = submission.fileUrl ?: submission.driveUrl
+
                         if (!url.isNullOrBlank()) {
                             onOpenUrl(url)
                         }
@@ -611,7 +758,7 @@ private fun DetailBottomNavigation(
         )
 
         NavigationBarItem(
-            selected = true, // Menu bimbingan tetap aktif karena detail ada dalam flow bimbingan
+            selected = true,
             onClick = onBimbinganClick,
             colors = navItemColors,
             icon = {
@@ -653,6 +800,7 @@ private fun Context.getFileName(uri: Uri): String? {
         cursor?.use {
             if (it.moveToFirst()) {
                 val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+
                 if (index >= 0) {
                     result = it.getString(index)
                 }
@@ -668,6 +816,12 @@ private fun Context.getFileName(uri: Uri): String? {
 }
 
 private fun Context.openUrl(url: String) {
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+    val finalUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        "http://$url"
+    } else {
+        url
+    }
+
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl))
     startActivity(intent)
 }

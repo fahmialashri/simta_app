@@ -39,6 +39,7 @@ import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
 import com.project.component.UploadPageAlert
 import com.project.core.SimtaYellow
+import com.project.lecturer.LecturerViewModel
 import com.project.navigation.Screen
 import com.project.upload.UploadBerkasViewModel
 
@@ -46,12 +47,14 @@ import com.project.upload.UploadBerkasViewModel
 fun PendaftaranKolokiumFormScreen(
     navController: NavHostController,
     authViewModel: AuthViewModel,
-    uploadBerkasViewModel: UploadBerkasViewModel
+    uploadBerkasViewModel: UploadBerkasViewModel,
+    lecturerViewModel: LecturerViewModel
 ) {
     val context = LocalContext.current
 
     val authState by authViewModel.uiState.collectAsState()
     val uploadState by uploadBerkasViewModel.uiState.collectAsState()
+    val lecturerState by lecturerViewModel.uiState.collectAsState()
 
     var nama by remember { mutableStateOf(authState.name.orEmpty()) }
     var npm by remember { mutableStateOf(authState.nim.orEmpty()) }
@@ -61,12 +64,30 @@ fun PendaftaranKolokiumFormScreen(
     var judulIndonesia by remember { mutableStateOf("") }
     var judulEnglish by remember { mutableStateOf("") }
 
-    val selectedFileNames = remember {
-        mutableStateMapOf<String, String>()
+    val selectedFileNames = remember { mutableStateMapOf<String, String>() }
+    val selectedFileUris = remember { mutableStateMapOf<String, Uri>() }
+
+    val lecturerOptions = remember(lecturerState.lecturers) {
+        lecturerState.lecturers
+            .filter { it.isActive }
+            .map { it.fullName }
+            .distinct()
     }
 
-    val selectedFileUris = remember {
-        mutableStateMapOf<String, Uri>()
+    val pembimbing1Options = remember(lecturerOptions, pembimbing2) {
+        lecturerOptions.filter { it != pembimbing2 }
+    }
+
+    val pembimbing2Options = remember(lecturerOptions, pembimbing1) {
+        lecturerOptions.filter { it != pembimbing1 }
+    }
+
+    val dropdownEmptyText = if (authState.departmentId == null) {
+        "Program studi belum ditemukan"
+    } else if (lecturerState.isLoading) {
+        "Memuat data dosen..."
+    } else {
+        "Data dosen belum tersedia"
     }
 
     val documents = remember {
@@ -120,13 +141,28 @@ fun PendaftaranKolokiumFormScreen(
                 documents.all { selectedFileUris.containsKey(it.key) } &&
                 !uploadState.isLoading
 
+    LaunchedEffect(authState.departmentId) {
+        lecturerViewModel.loadLecturersByDepartment(authState.departmentId)
+    }
+
     LaunchedEffect(authState.name, authState.nim) {
-        if (nama.isBlank()) {
-            nama = authState.name.orEmpty()
+        if (nama.isBlank()) nama = authState.name.orEmpty()
+        if (npm.isBlank()) npm = authState.nim.orEmpty()
+    }
+
+    LaunchedEffect(lecturerOptions) {
+        if (pembimbing1.isNotBlank() && pembimbing1 !in lecturerOptions) {
+            pembimbing1 = ""
         }
 
-        if (npm.isBlank()) {
-            npm = authState.nim.orEmpty()
+        if (pembimbing2.isNotBlank() && pembimbing2 !in lecturerOptions) {
+            pembimbing2 = ""
+        }
+    }
+
+    LaunchedEffect(pembimbing1, pembimbing2) {
+        if (pembimbing1.isNotBlank() && pembimbing1 == pembimbing2) {
+            pembimbing2 = ""
         }
     }
 
@@ -141,9 +177,7 @@ fun PendaftaranKolokiumFormScreen(
             uploadBerkasViewModel.resetState()
 
             navController.navigate(Screen.MahasiswaDashboard.route) {
-                popUpTo(Screen.Pengajuan.route) {
-                    inclusive = false
-                }
+                popUpTo(Screen.Pengajuan.route) { inclusive = false }
                 launchSingleTop = true
             }
         }
@@ -151,11 +185,7 @@ fun PendaftaranKolokiumFormScreen(
 
     LaunchedEffect(uploadState.errorMessage) {
         uploadState.errorMessage?.let { message ->
-            Toast.makeText(
-                context,
-                message,
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -163,9 +193,7 @@ fun PendaftaranKolokiumFormScreen(
         topBar = {
             FormTopBar(
                 title = "Pendaftaran Sidang Kolokium",
-                onBackClick = {
-                    navController.popBackStack()
-                }
+                onBackClick = { navController.popBackStack() }
             )
         }
     ) { padding ->
@@ -258,17 +286,21 @@ fun PendaftaranKolokiumFormScreen(
                 FormCard {
                     AppDropdownField(
                         label = "Pembimbing Skripsi 1",
-                        placeholder = "-- Pilih pembimbing 1 --",
+                        placeholder = "Pilih pembimbing 1",
                         value = pembimbing1,
-                        options = sampleLecturersKolokium(),
+                        options = pembimbing1Options,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
                         onSelect = { pembimbing1 = it }
                     )
 
                     AppDropdownField(
                         label = "Pembimbing Skripsi 2",
-                        placeholder = "-- Pilih pembimbing 2 --",
+                        placeholder = "Pilih pembimbing 2",
                         value = pembimbing2,
-                        options = sampleLecturersKolokium(),
+                        options = pembimbing2Options,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
                         onSelect = { pembimbing2 = it }
                     )
                 }
@@ -327,24 +359,9 @@ fun PendaftaranKolokiumFormScreen(
                         disabledContentColor = Color.Gray
                     )
                 ) {
-                    Text(
-                        text = if (uploadState.isLoading) {
-                            "Mengirim..."
-                        } else {
-                            "Daftar Sidang"
-                        }
-                    )
+                    Text(text = if (uploadState.isLoading) "Mengirim..." else "Daftar Sidang")
                 }
             }
         }
     }
-}
-
-private fun sampleLecturersKolokium(): List<String> {
-    return listOf(
-        "Dr. Dosen Pembimbing 1",
-        "Dr. Dosen Pembimbing 2",
-        "Dr. Dosen Pembimbing 3",
-        "Dr. Dosen Pembimbing 4"
-    )
 }

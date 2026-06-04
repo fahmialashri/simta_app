@@ -16,7 +16,10 @@ data class Lecturer(
     val quota: Int = 5,
 
     @SerialName("current_students")
-    val currentStudents: Int = 0
+    val currentStudents: Int = 0,
+
+    @SerialName("is_active")
+    val isActive: Boolean = true
 ) {
     val fullName: String
         get() = if (title.isNullOrBlank()) name else "$name, $title"
@@ -25,5 +28,22 @@ data class Lecturer(
         get() = quota - currentStudents
 
     val isAvailable: Boolean
-        get() = remainingQuota > 0
+        get() = isActive && remainingQuota > 0
 }
+
+@Serializable
+data class LecturerInsert(
+    @SerialName("department_id")
+    val departmentId: Long,
+
+    val name: String,
+    val title: String? = null,
+    val expertise: String? = null,
+    val quota: Int = 5,
+
+    @SerialName("current_students")
+    val currentStudents: Int = 0,
+
+    @SerialName("is_active")
+    val isActive: Boolean = true
+)

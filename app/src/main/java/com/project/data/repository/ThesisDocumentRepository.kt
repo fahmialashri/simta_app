@@ -251,6 +251,20 @@ class ThesisDocumentRepository {
             .decodeList<ThesisSubmission>()
     }
 
+    suspend fun getSubmissionsByStudentId(
+        studentId: String
+    ): List<ThesisSubmission> {
+        return supabase
+            .from("thesis_submissions")
+            .select {
+                filter {
+                    eq("student_id", studentId)
+                }
+                order("created_at", Order.DESCENDING)
+            }
+            .decodeList<ThesisSubmission>()
+    }
+
     suspend fun getPendingSubmissions(): List<ThesisSubmission> {
         return supabase
             .from("thesis_submissions")

@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -151,11 +152,30 @@ internal fun RequestCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = item.title,
+                text = item.title.orEmpty().ifBlank { "Judul belum tersedia" },
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.Black
             )
+
+            if (!item.topic.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Topik:",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = item.topic.orEmpty(),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -185,6 +205,80 @@ internal fun RequestCard(
                     fontWeight = FontWeight.Medium,
                     color = Color.Black
                 )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Kuota: ${item.lecturerCurrentStudents}/${item.lecturerQuota}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (item.lecturerIsFull) {
+                    SimtaRed
+                } else {
+                    SimtaGreen
+                }
+            )
+
+            if (item.lecturerIsFull) {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFFFEBEE))
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = SimtaRed,
+                                modifier = Modifier.size(16.dp)
+                            )
+
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            Text(
+                                text = "Kuota dosen penuh",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SimtaRed
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        if (item.recommendedLecturers.isEmpty()) {
+                            Text(
+                                text = "Belum ada rekomendasi dosen yang tersedia.",
+                                fontSize = 11.sp,
+                                color = Color.DarkGray
+                            )
+                        } else {
+                            Text(
+                                text = "Rekomendasi dosen:",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.DarkGray
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            item.recommendedLecturers.forEach { lecturer ->
+                                Text(
+                                    text = "• ${lecturer.fullName} (${lecturer.currentStudents}/${lecturer.quota})",
+                                    fontSize = 11.sp,
+                                    color = Color.DarkGray
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -225,7 +319,7 @@ internal fun RequestCard(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = item.note,
+                            text = item.note.orEmpty(),
                             fontSize = 12.sp,
                             color = Color.Black
                         )
@@ -260,16 +354,22 @@ internal fun RequestCard(
 
                 Button(
                     onClick = onAcceptClick,
+                    enabled = !item.lecturerIsFull,
                     modifier = Modifier
                         .weight(1f)
                         .height(46.dp),
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = SimtaGreen
+                        containerColor = SimtaGreen,
+                        disabledContainerColor = Color.LightGray
                     )
                 ) {
                     Text(
-                        text = "Setujui",
+                        text = if (item.lecturerIsFull) {
+                            "Kuota Penuh"
+                        } else {
+                            "Setujui"
+                        },
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )

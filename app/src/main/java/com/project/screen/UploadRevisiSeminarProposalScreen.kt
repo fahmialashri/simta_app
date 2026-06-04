@@ -43,6 +43,7 @@ import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
 import com.project.component.UploadPageAlert
 import com.project.core.SimtaYellow
+import com.project.lecturer.LecturerViewModel
 import com.project.navigation.Screen
 import com.project.upload.UploadBerkasViewModel
 
@@ -50,27 +51,49 @@ import com.project.upload.UploadBerkasViewModel
 fun UploadRevisiSeminarProposalScreen(
     navController: NavHostController,
     authViewModel: AuthViewModel,
-    uploadBerkasViewModel: UploadBerkasViewModel
+    uploadBerkasViewModel: UploadBerkasViewModel,
+    lecturerViewModel: LecturerViewModel
 ) {
     val context = LocalContext.current
 
     val authState by authViewModel.uiState.collectAsState()
     val uploadState by uploadBerkasViewModel.uiState.collectAsState()
+    val lecturerState by lecturerViewModel.uiState.collectAsState()
 
     var nama by remember { mutableStateOf(authState.name.orEmpty()) }
     var npm by remember { mutableStateOf(authState.nim.orEmpty()) }
-    var pembimbing by remember { mutableStateOf("") }
-    var penguji by remember { mutableStateOf("") }
+    var pembimbing1 by remember { mutableStateOf("") }
+    var pengujiProposal by remember { mutableStateOf("") }
     var tanggalProposal by remember { mutableStateOf("") }
     var judulRevisi by remember { mutableStateOf("") }
     var isDraftSaved by remember { mutableStateOf(false) }
 
-    val selectedFileNames = remember {
-        mutableStateMapOf<String, String>()
+    val selectedFileNames = remember { mutableStateMapOf<String, String>() }
+    val selectedFileUris = remember { mutableStateMapOf<String, Uri>() }
+
+    val lecturerOptions = remember(lecturerState.lecturers) {
+        lecturerState.lecturers
+            .filter { it.isActive }
+            .map { it.fullName }
+            .distinct()
     }
 
-    val selectedFileUris = remember {
-        mutableStateMapOf<String, Uri>()
+    val pembimbingOptions = remember(lecturerOptions, pengujiProposal) {
+        lecturerOptions.filter { it != pengujiProposal }
+    }
+
+    val pengujiOptions = remember(lecturerOptions, pembimbing1) {
+        lecturerOptions.filter { it != pembimbing1 }
+    }
+
+    val pembimbing2Otomatis = pengujiProposal
+
+    val dropdownEmptyText = if (authState.departmentId == null) {
+        "Program studi belum ditemukan"
+    } else if (lecturerState.isLoading) {
+        "Memuat data dosen..."
+    } else {
+        "Data dosen belum tersedia"
     }
 
     val documents = remember {
@@ -101,12 +124,16 @@ fun UploadRevisiSeminarProposalScreen(
     val isValid =
         nama.isNotBlank() &&
                 npm.isNotBlank() &&
-                pembimbing.isNotBlank() &&
-                penguji.isNotBlank() &&
+                pembimbing1.isNotBlank() &&
+                pengujiProposal.isNotBlank() &&
                 tanggalProposal.isNotBlank() &&
                 judulRevisi.isNotBlank() &&
                 documents.all { selectedFileUris.containsKey(it.key) } &&
                 !uploadState.isLoading
+
+    LaunchedEffect(authState.departmentId) {
+        lecturerViewModel.loadLecturersByDepartment(authState.departmentId)
+    }
 
     LaunchedEffect(authState.name, authState.nim) {
         if (nama.isBlank()) {
@@ -115,6 +142,22 @@ fun UploadRevisiSeminarProposalScreen(
 
         if (npm.isBlank()) {
             npm = authState.nim.orEmpty()
+        }
+    }
+
+    LaunchedEffect(lecturerOptions) {
+        if (pembimbing1.isNotBlank() && pembimbing1 !in lecturerOptions) {
+            pembimbing1 = ""
+        }
+
+        if (pengujiProposal.isNotBlank() && pengujiProposal !in lecturerOptions) {
+            pengujiProposal = ""
+        }
+    }
+
+    LaunchedEffect(pembimbing1, pengujiProposal) {
+        if (pembimbing1.isNotBlank() && pembimbing1 == pengujiProposal) {
+            pengujiProposal = ""
         }
     }
 
@@ -172,7 +215,14 @@ fun UploadRevisiSeminarProposalScreen(
         ) {
             item {
                 UploadPageAlert(
-                    text = "Form revisi setelah seminar proposal. Pastikan judul revisi sudah disetujui pembimbing dan penguji."
+                    text = "Form revisi setelah seminar proposal. Dosen penguji yang dipilih akan otomatis tercatat sebagai Pembimbing 2."
+                )
+            }
+
+            item {
+                SectionTitle(
+                    icon = Icons.Rounded.Edit,
+                    title = "Data Revisi Seminar Proposal"
                 )
             }
 
@@ -191,19 +241,31 @@ fun UploadRevisiSeminarProposalScreen(
                     )
 
                     AppDropdownField(
-                        label = "Pembimbing Proposal",
-                        placeholder = "-- Pilih dosen pembimbing --",
-                        value = pembimbing,
-                        options = sampleLecturersRevisiSempro(),
-                        onSelect = { pembimbing = it }
+                        label = "Pembimbing 1",
+                        placeholder = "Pilih dosen pembimbing 1",
+                        value = pembimbing1,
+                        options = pembimbingOptions,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
+                        onSelect = { pembimbing1 = it }
                     )
 
                     AppDropdownField(
                         label = "Penguji Proposal",
-                        placeholder = "-- Pilih dosen penguji --",
-                        value = penguji,
-                        options = sampleExaminersRevisiSempro(),
-                        onSelect = { penguji = it }
+                        placeholder = "Pilih dosen penguji proposal",
+                        value = pengujiProposal,
+                        options = pengujiOptions,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
+                        onSelect = { pengujiProposal = it }
+                    )
+
+                    AppTextField(
+                        label = "Pembimbing 2 Otomatis",
+                        placeholder = "Akan terisi otomatis dari dosen penguji proposal",
+                        value = pembimbing2Otomatis,
+                        onValueChange = {},
+                        required = false
                     )
 
                     AppTextField(
@@ -268,7 +330,7 @@ fun UploadRevisiSeminarProposalScreen(
                     description = if (isDraftSaved) {
                         "Draft revisi seminar proposal tersimpan sementara di halaman ini."
                     } else {
-                        "Pastikan judul revisi sudah disetujui oleh pembimbing dan penguji sebelum dikirim."
+                        "Dosen penguji proposal akan otomatis disimpan sebagai Pembimbing 2. Pastikan dosen yang dipilih sudah benar sebelum dikirim."
                     }
                 )
             }
@@ -306,9 +368,9 @@ fun UploadRevisiSeminarProposalScreen(
                                 phone = null,
                                 title = judulRevisi.trim(),
                                 titleEnglish = null,
-                                supervisor1 = pembimbing.trim(),
-                                supervisor2 = null,
-                                examiner1 = penguji.trim(),
+                                supervisor1 = pembimbing1.trim(),
+                                supervisor2 = pengujiProposal.trim(),
+                                examiner1 = pengujiProposal.trim(),
                                 examiner2 = null,
                                 files = selectedFileUris.toMap()
                             )
@@ -335,22 +397,4 @@ fun UploadRevisiSeminarProposalScreen(
             }
         }
     }
-}
-
-private fun sampleLecturersRevisiSempro(): List<String> {
-    return listOf(
-        "Dr. Dosen Pembimbing 1",
-        "Dr. Dosen Pembimbing 2",
-        "Dr. Dosen Pembimbing 3",
-        "Dr. Dosen Pembimbing 4"
-    )
-}
-
-private fun sampleExaminersRevisiSempro(): List<String> {
-    return listOf(
-        "Dr. Dosen Penguji 1",
-        "Dr. Dosen Penguji 2",
-        "Dr. Dosen Penguji 3",
-        "Dr. Dosen Penguji 4"
-    )
 }
