@@ -1,5 +1,6 @@
 package com.project.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,13 +18,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -35,52 +36,102 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.project.core.SimtaRed
-
-data class LecturerOptionUi(
-    val id: String,
-    val name: String
-)
-
-data class ExaminerInputUi(
-    val order: Int,
-    var lecturerId: String = "",
-    var lecturerName: String = "",
-    var willBeSupervisor: Boolean = false,
-    var supervisorOrder: Int? = null
-)
+import com.project.data.model.Lecturer
+import com.project.lecturer.LecturerViewModel
+import com.project.upload.UploadBerkasViewModel
 
 @Composable
 fun TuPlottingPengujiScreen(
     navController: NavHostController,
-    stageId: String
+    stageId: String,
+    uploadBerkasViewModel: UploadBerkasViewModel,
+    lecturerViewModel: LecturerViewModel
 ) {
-    val lecturers = remember {
-        listOf(
-            LecturerOptionUi("1", "Dr. Budi Santoso, M.Kom"),
-            LecturerOptionUi("2", "Dr. Rina Marlina, M.Kom"),
-            LecturerOptionUi("3", "Dr. Ahmad Hidayat, M.T"),
-            LecturerOptionUi("4", "Dr. Sari Permata, M.Kom")
-        )
+    val context = LocalContext.current
+
+    val uploadState by uploadBerkasViewModel.uiState.collectAsState()
+    val lecturerState by lecturerViewModel.uiState.collectAsState()
+
+    val submission = uploadState.selectedSubmission
+
+    var examiner1 by remember { mutableStateOf<Lecturer?>(null) }
+    var examiner2 by remember { mutableStateOf<Lecturer?>(null) }
+
+    val requiredExaminerCount = remember(submission?.stage) {
+        getRequiredExaminerCount(submission?.stage)
     }
 
-    val examiners = remember {
-        mutableStateListOf(
-            ExaminerInputUi(order = 1),
-            ExaminerInputUi(order = 2)
-        )
+    val departmentName = uploadState.selectedSubmissionDepartmentId.toDepartmentName()
+
+    val lecturerOptions = remember(lecturerState.lecturers) {
+        lecturerState.lecturers
+            .filter { it.isActive }
+            .distinctBy { it.id }
+    }
+
+    val examiner1Options = remember(lecturerOptions, examiner2) {
+        lecturerOptions.filter { it.id != examiner2?.id }
+    }
+
+    val examiner2Options = remember(lecturerOptions, examiner1) {
+        lecturerOptions.filter { it.id != examiner1?.id }
+    }
+
+    val hasNewSubmissionNotification = remember(submission) {
+        submission != null &&
+                submission.status == "disetujui_tu" &&
+                submission.examiner1.isNullOrBlank()
+    }
+
+    val canSave = when (requiredExaminerCount) {
+        1 -> examiner1 != null && !uploadState.isLoading
+        else -> examiner1 != null && examiner2 != null && !uploadState.isLoading
+    }
+
+    LaunchedEffect(stageId) {
+        uploadBerkasViewModel.loadSubmissionForPlotting(stageId)
+    }
+
+    LaunchedEffect(uploadState.selectedSubmissionDepartmentId) {
+        lecturerViewModel.loadLecturersByDepartment(uploadState.selectedSubmissionDepartmentId)
+    }
+
+    LaunchedEffect(submission?.examiner1, submission?.examiner2, lecturerOptions) {
+        if (lecturerOptions.isNotEmpty()) {
+            if (examiner1 == null && !submission?.examiner1.isNullOrBlank()) {
+                examiner1 = lecturerOptions.firstOrNull {
+                    it.fullName == submission?.examiner1 || it.name == submission?.examiner1
+                }
+            }
+
+            if (examiner2 == null && !submission?.examiner2.isNullOrBlank()) {
+                examiner2 = lecturerOptions.firstOrNull {
+                    it.fullName == submission?.examiner2 || it.name == submission?.examiner2
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(uploadState.errorMessage) {
+        uploadState.errorMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            uploadBerkasViewModel.clearError()
+        }
     }
 
     Scaffold(
@@ -88,10 +139,27 @@ fun TuPlottingPengujiScreen(
         bottomBar = {
             Button(
                 onClick = {
-                    // Nanti sambungkan ke Supabase:
-                    // viewModel.saveExaminerPlots(stageId, examiners)
-                    navController.popBackStack()
+                    uploadBerkasViewModel.saveExaminerPlotting(
+                        submissionId = stageId,
+                        examiner1 = examiner1?.fullName.orEmpty(),
+                        examiner2 = if (requiredExaminerCount == 1) {
+                            null
+                        } else {
+                            examiner2?.fullName
+                        },
+                        reloadStage = submission?.stage,
+                        onSuccess = {
+                            Toast.makeText(
+                                context,
+                                "Plotting dosen penguji berhasil disimpan",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            navController.popBackStack()
+                        }
+                    )
                 },
+                enabled = canSave,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp)
@@ -99,22 +167,31 @@ fun TuPlottingPengujiScreen(
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = SimtaRed
+                    containerColor = SimtaRed,
+                    disabledContainerColor = Color.LightGray
                 )
             ) {
-                Icon(
-                    imageVector = Icons.Default.Save,
-                    contentDescription = null,
-                    tint = Color.White
-                )
+                if (uploadState.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Save,
+                        contentDescription = null,
+                        tint = Color.White
+                    )
 
-                Spacer(modifier = Modifier.size(8.dp))
+                    Spacer(modifier = Modifier.size(8.dp))
 
-                Text(
-                    text = "Simpan Plotting",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+                    Text(
+                        text = "Simpan Plotting",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     ) { paddingValues ->
@@ -149,7 +226,7 @@ fun TuPlottingPengujiScreen(
                     )
 
                     Text(
-                        text = "Atur penguji dan pembimbing tambahan",
+                        text = "Penguji difilter sesuai jurusan mahasiswa",
                         fontSize = 12.sp,
                         color = Color.DarkGray
                     )
@@ -158,46 +235,160 @@ fun TuPlottingPengujiScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            InfoPlottingCard()
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            examiners.forEachIndexed { index, item ->
-                ExaminerFormCard(
-                    item = item,
-                    lecturers = lecturers,
-                    onChange = { updated ->
-                        examiners[index] = updated
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-
-            Button(
-                onClick = {
-                    examiners.add(
-                        ExaminerInputUi(order = examiners.size + 1)
+            if (uploadState.isLoading && submission == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = SimtaRed)
+                }
+            } else {
+                if (hasNewSubmissionNotification) {
+                    NewSubmissionNotificationCard(
+                        studentName = submission?.studentName ?: "-",
+                        stage = submission?.stage.orEmpty()
                     )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Black
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                SubmissionInfoCard(
+                    studentName = submission?.studentName ?: "-",
+                    nim = submission?.nim ?: "-",
+                    stage = submission?.stage ?: "-",
+                    title = submission?.title ?: "-",
+                    requiredExaminerCount = requiredExaminerCount,
+                    departmentName = departmentName
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                InfoPlottingCard(
+                    requiredExaminerCount = requiredExaminerCount,
+                    stage = submission?.stage.orEmpty()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ExaminerDropdownCard(
+                    title = "Penguji 1",
+                    selectedLecturer = examiner1,
+                    lecturers = examiner1Options,
+                    isLoading = lecturerState.isLoading,
+                    emptyText = if (lecturerState.isLoading) {
+                        "Memuat data dosen..."
+                    } else {
+                        "Data dosen jurusan $departmentName belum tersedia"
+                    },
+                    onSelect = { examiner1 = it }
+                )
+
+                if (requiredExaminerCount >= 2) {
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    ExaminerDropdownCard(
+                        title = "Penguji 2",
+                        selectedLecturer = examiner2,
+                        lecturers = examiner2Options,
+                        isLoading = lecturerState.isLoading,
+                        emptyText = if (lecturerState.isLoading) {
+                            "Memuat data dosen..."
+                        } else {
+                            "Data dosen jurusan $departmentName belum tersedia"
+                        },
+                        onSelect = { examiner2 = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (requiredExaminerCount == 1) {
+                    Text(
+                        text = "Aturan: seminar proposal hanya membutuhkan 1 dosen penguji.",
+                        color = Color.DarkGray,
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp
+                    )
+                } else {
+                    Text(
+                        text = "Aturan: tahap ini membutuhkan 2 dosen penguji dan tidak boleh memilih dosen yang sama.",
+                        color = Color.DarkGray,
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun getRequiredExaminerCount(stage: String?): Int {
+    return when (stage) {
+        "seminar_proposal",
+        "revisi_seminar_proposal" -> 1
+
+        "kolokium",
+        "pendaftaran_kolokium",
+        "revisi_kolokium",
+        "yudisium" -> 2
+
+        else -> 1
+    }
+}
+
+@Composable
+private fun NewSubmissionNotificationCard(
+    studentName: String,
+    stage: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFEBEE)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(
+                        color = SimtaRed,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.PersonAdd,
+                    imageVector = Icons.Default.Notifications,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = Color.White,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Pengajuan Baru Masuk",
+                    color = SimtaRed,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold
                 )
 
-                Spacer(modifier = Modifier.size(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Tambah Penguji",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    text = "$studentName sudah disetujui TU untuk tahap ${stage.toReadableStageName()} dan belum diplotting dosen penguji.",
+                    color = Color.DarkGray,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
                 )
             }
         }
@@ -205,7 +396,87 @@ fun TuPlottingPengujiScreen(
 }
 
 @Composable
-private fun InfoPlottingCard() {
+private fun SubmissionInfoCard(
+    studentName: String,
+    nim: String,
+    stage: String,
+    title: String,
+    requiredExaminerCount: Int,
+    departmentName: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Data Pengajuan",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 15.sp,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            InfoText("Mahasiswa", studentName)
+            InfoText("NIM", nim)
+            InfoText("Tahap", stage.toReadableStageName())
+            InfoText("Jurusan", departmentName)
+            InfoText("Jumlah Penguji", "$requiredExaminerCount orang")
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Judul",
+                color = Color.DarkGray,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = title,
+                color = Color.Black,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoText(
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+    ) {
+        Text(
+            text = label,
+            color = Color.DarkGray,
+            fontSize = 12.sp,
+            modifier = Modifier.weight(0.38f)
+        )
+
+        Text(
+            text = value,
+            color = Color.Black,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp,
+            modifier = Modifier.weight(0.62f)
+        )
+    }
+}
+
+@Composable
+private fun InfoPlottingCard(
+    requiredExaminerCount: Int,
+    stage: String
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -226,7 +497,11 @@ private fun InfoPlottingCard() {
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Seminar Proposal: penguji bisa menjadi pembimbing 2. Kolokium: penguji bisa menjadi pembimbing 3 dan 4.",
+                text = if (requiredExaminerCount == 1) {
+                    "${stage.toReadableStageName()} hanya membutuhkan 1 dosen penguji."
+                } else {
+                    "${stage.toReadableStageName()} membutuhkan 2 dosen penguji."
+                },
                 color = Color.White.copy(alpha = 0.92f),
                 fontSize = 12.sp,
                 lineHeight = 18.sp
@@ -237,26 +512,27 @@ private fun InfoPlottingCard() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExaminerFormCard(
-    item: ExaminerInputUi,
-    lecturers: List<LecturerOptionUi>,
-    onChange: (ExaminerInputUi) -> Unit
+private fun ExaminerDropdownCard(
+    title: String,
+    selectedLecturer: Lecturer?,
+    lecturers: List<Lecturer>,
+    isLoading: Boolean,
+    emptyText: String,
+    onSelect: (Lecturer) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Penguji ${item.order}",
+                text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.Black
@@ -267,15 +543,19 @@ private fun ExaminerFormCard(
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = {
-                    expanded = !expanded
+                    if (!isLoading && lecturers.isNotEmpty()) {
+                        expanded = !expanded
+                    }
                 }
             ) {
                 OutlinedTextField(
-                    value = item.lecturerName,
+                    value = selectedLecturer?.fullName.orEmpty(),
                     onValueChange = {},
                     readOnly = true,
                     label = {
-                        Text("Pilih Dosen")
+                        Text(
+                            text = if (lecturers.isEmpty()) emptyText else "Pilih Dosen"
+                        )
                     },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
@@ -294,106 +574,36 @@ private fun ExaminerFormCard(
                     lecturers.forEach { lecturer ->
                         DropdownMenuItem(
                             text = {
-                                Text(lecturer.name)
+                                Text(lecturer.fullName)
                             },
                             onClick = {
-                                onChange(
-                                    item.copy(
-                                        lecturerId = lecturer.id,
-                                        lecturerName = lecturer.name
-                                    )
-                                )
+                                onSelect(lecturer)
                                 expanded = false
                             }
                         )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = item.willBeSupervisor,
-                    onCheckedChange = { checked ->
-                        onChange(
-                            item.copy(
-                                willBeSupervisor = checked,
-                                supervisorOrder = if (checked) 2 else null
-                            )
-                        )
-                    }
-                )
-
-                Text(
-                    text = "Jadikan pembimbing tambahan",
-                    fontSize = 13.sp,
-                    color = Color.Black
-                )
-            }
-
-            if (item.willBeSupervisor) {
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SupervisorOrderButton(
-                        label = "Pembimbing 2",
-                        selected = item.supervisorOrder == 2,
-                        onClick = {
-                            onChange(item.copy(supervisorOrder = 2))
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    SupervisorOrderButton(
-                        label = "Pembimbing 3",
-                        selected = item.supervisorOrder == 3,
-                        onClick = {
-                            onChange(item.copy(supervisorOrder = 3))
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                SupervisorOrderButton(
-                    label = "Pembimbing 4",
-                    selected = item.supervisorOrder == 4,
-                    onClick = {
-                        onChange(item.copy(supervisorOrder = 4))
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
         }
     }
 }
 
-@Composable
-private fun SupervisorOrderButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) SimtaRed else Color(0xFFE0E0E0)
-        )
-    ) {
-        Text(
-            text = label,
-            color = if (selected) Color.White else Color.Black,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
-        )
+private fun Long?.toDepartmentName(): String {
+    return when (this) {
+        1L -> "Informatika"
+        2L -> "Sistem Informasi"
+        else -> "Program Studi Tidak Diketahui"
+    }
+}
+
+private fun String.toReadableStageName(): String {
+    return when (this) {
+        "seminar_proposal" -> "Seminar Proposal"
+        "revisi_seminar_proposal" -> "Revisi Seminar Proposal"
+        "kolokium" -> "Kolokium"
+        "pendaftaran_kolokium" -> "Kolokium"
+        "revisi_kolokium" -> "Revisi Kolokium"
+        "yudisium" -> "Yudisium"
+        else -> replace("_", " ").replaceFirstChar { it.uppercase() }
     }
 }

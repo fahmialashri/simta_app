@@ -5,18 +5,15 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,7 +34,8 @@ import com.project.component.AppDropdownField
 import com.project.component.AppTextField
 import com.project.component.FormCard
 import com.project.component.FormTopBar
-import com.project.component.InfoBox
+import com.project.component.MahasiswaBottomNavItem
+import com.project.component.MahasiswaBottomNavigation
 import com.project.component.SectionTitle
 import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
@@ -62,11 +60,10 @@ fun UploadRevisiSeminarProposalScreen(
 
     var nama by remember { mutableStateOf(authState.name.orEmpty()) }
     var npm by remember { mutableStateOf(authState.nim.orEmpty()) }
+    var nomorHp by remember { mutableStateOf("") }
+    var judulProposal by remember { mutableStateOf("") }
     var pembimbing1 by remember { mutableStateOf("") }
     var pengujiProposal by remember { mutableStateOf("") }
-    var tanggalProposal by remember { mutableStateOf("") }
-    var judulRevisi by remember { mutableStateOf("") }
-    var isDraftSaved by remember { mutableStateOf(false) }
 
     val selectedFileNames = remember { mutableStateMapOf<String, String>() }
     val selectedFileUris = remember { mutableStateMapOf<String, Uri>() }
@@ -78,15 +75,13 @@ fun UploadRevisiSeminarProposalScreen(
             .distinct()
     }
 
-    val pembimbingOptions = remember(lecturerOptions, pengujiProposal) {
-        lecturerOptions.filter { it != pengujiProposal }
-    }
-
     val pengujiOptions = remember(lecturerOptions, pembimbing1) {
         lecturerOptions.filter { it != pembimbing1 }
     }
 
-    val pembimbing2Otomatis = pengujiProposal
+    val pembimbingOptions = remember(lecturerOptions, pengujiProposal) {
+        lecturerOptions.filter { it != pengujiProposal }
+    }
 
     val dropdownEmptyText = if (authState.departmentId == null) {
         "Program studi belum ditemukan"
@@ -99,9 +94,9 @@ fun UploadRevisiSeminarProposalScreen(
     val documents = remember {
         listOf(
             UploadFileItem(
-                key = "soft_file_proposal_revisi",
-                title = "Soft File Proposal Revisi",
-                description = "Format Word atau PDF (.pdf / .docx), maks. 10 MB",
+                key = "proposal_revisi",
+                title = "File Proposal Revisi",
+                description = "Format PDF atau Word (.pdf / .doc / .docx), maks. 10 MB",
                 mimeTypes = listOf(
                     "application/pdf",
                     "application/msword",
@@ -109,14 +104,9 @@ fun UploadRevisiSeminarProposalScreen(
                 )
             ),
             UploadFileItem(
-                key = "bukti_persetujuan_pembimbing",
-                title = "Bukti Persetujuan Pembimbing",
-                description = "Screenshot persetujuan pembimbing"
-            ),
-            UploadFileItem(
-                key = "bukti_persetujuan_penguji",
-                title = "Bukti Persetujuan Penguji",
-                description = "Screenshot persetujuan penguji"
+                key = "lembar_revisi_sempro",
+                title = "Lembar Revisi Seminar Proposal",
+                description = "Upload lembar revisi yang sudah ditandatangani"
             )
         )
     }
@@ -124,10 +114,10 @@ fun UploadRevisiSeminarProposalScreen(
     val isValid =
         nama.isNotBlank() &&
                 npm.isNotBlank() &&
+                nomorHp.isNotBlank() &&
+                judulProposal.isNotBlank() &&
                 pembimbing1.isNotBlank() &&
                 pengujiProposal.isNotBlank() &&
-                tanggalProposal.isNotBlank() &&
-                judulRevisi.isNotBlank() &&
                 documents.all { selectedFileUris.containsKey(it.key) } &&
                 !uploadState.isLoading
 
@@ -155,17 +145,11 @@ fun UploadRevisiSeminarProposalScreen(
         }
     }
 
-    LaunchedEffect(pembimbing1, pengujiProposal) {
-        if (pembimbing1.isNotBlank() && pembimbing1 == pengujiProposal) {
-            pengujiProposal = ""
-        }
-    }
-
     LaunchedEffect(uploadState.isSuccess) {
         if (uploadState.isSuccess) {
             Toast.makeText(
                 context,
-                "Revisi seminar proposal berhasil dikirim ke TU",
+                "Upload revisi seminar proposal berhasil dikirim ke TU",
                 Toast.LENGTH_SHORT
             ).show()
 
@@ -193,10 +177,16 @@ fun UploadRevisiSeminarProposalScreen(
     Scaffold(
         topBar = {
             FormTopBar(
-                title = "Revisi Proposal Skripsi",
+                title = "Revisi Seminar Proposal",
                 onBackClick = {
                     navController.popBackStack()
                 }
+            )
+        },
+        bottomBar = {
+            MahasiswaBottomNavigation(
+                navController = navController,
+                selectedItem = MahasiswaBottomNavItem.PENGAJUAN
             )
         }
     ) { padding ->
@@ -209,39 +199,67 @@ fun UploadRevisiSeminarProposalScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = 14.dp,
-                bottom = 28.dp
+                bottom = 96.dp
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
                 UploadPageAlert(
-                    text = "Form revisi setelah seminar proposal. Dosen penguji yang dipilih akan otomatis tercatat sebagai Pembimbing 2."
+                    text = "Upload revisi seminar proposal. Dosen penguji proposal yang dipilih akan otomatis tercatat sebagai pembimbing 2."
                 )
             }
 
             item {
                 SectionTitle(
-                    icon = Icons.Rounded.Edit,
-                    title = "Data Revisi Seminar Proposal"
+                    icon = Icons.Rounded.UploadFile,
+                    title = "Data Mahasiswa"
                 )
             }
 
             item {
                 FormCard {
                     AppTextField(
-                        label = "Nama",
+                        label = "Nama Lengkap",
+                        placeholder = "Nama lengkap mahasiswa",
                         value = nama,
                         onValueChange = { nama = it }
                     )
 
                     AppTextField(
                         label = "NPM",
+                        placeholder = "NPM lengkap anda",
                         value = npm,
                         onValueChange = { npm = it }
                     )
 
+                    AppTextField(
+                        label = "Nomor Handphone",
+                        placeholder = "Contoh: 628123456789",
+                        value = nomorHp,
+                        onValueChange = { nomorHp = it }
+                    )
+                }
+            }
+
+            item {
+                SectionTitle(
+                    icon = Icons.Rounded.UploadFile,
+                    title = "Data Revisi Proposal"
+                )
+            }
+
+            item {
+                FormCard {
+                    AppTextField(
+                        label = "Judul Proposal Skripsi",
+                        placeholder = "Tulis judul proposal skripsi...",
+                        value = judulProposal,
+                        minLines = 3,
+                        onValueChange = { judulProposal = it }
+                    )
+
                     AppDropdownField(
-                        label = "Pembimbing 1",
+                        label = "Dosen Pembimbing 1",
                         placeholder = "Pilih dosen pembimbing 1",
                         value = pembimbing1,
                         options = pembimbingOptions,
@@ -251,28 +269,13 @@ fun UploadRevisiSeminarProposalScreen(
                     )
 
                     AppDropdownField(
-                        label = "Penguji Proposal",
+                        label = "Dosen Penguji Proposal",
                         placeholder = "Pilih dosen penguji proposal",
                         value = pengujiProposal,
                         options = pengujiOptions,
                         enabled = !lecturerState.isLoading,
                         emptyText = dropdownEmptyText,
                         onSelect = { pengujiProposal = it }
-                    )
-
-                    AppTextField(
-                        label = "Pembimbing 2 Otomatis",
-                        placeholder = "Akan terisi otomatis dari dosen penguji proposal",
-                        value = pembimbing2Otomatis,
-                        onValueChange = {},
-                        required = false
-                    )
-
-                    AppTextField(
-                        label = "Tanggal Pelaksanaan Proposal",
-                        placeholder = "Contoh: Rabu, 30 Oktober 2019",
-                        value = tanggalProposal,
-                        onValueChange = { tanggalProposal = it }
                     )
                 }
             }
@@ -302,97 +305,41 @@ fun UploadRevisiSeminarProposalScreen(
             }
 
             item {
-                SectionTitle(
-                    icon = Icons.Rounded.Edit,
-                    title = "Judul Revisi"
-                )
-            }
-
-            item {
-                FormCard {
-                    AppTextField(
-                        label = "Judul Proposal Setelah Direvisi",
-                        placeholder = "Tulis judul yang sudah direvisi...",
-                        value = judulRevisi,
-                        minLines = 4,
-                        onValueChange = { judulRevisi = it }
-                    )
-                }
-            }
-
-            item {
-                InfoBox(
-                    title = if (isDraftSaved) {
-                        "Draft sudah disimpan"
-                    } else {
-                        "Catatan penting"
+                Button(
+                    onClick = {
+                        uploadBerkasViewModel.submitRegistration(
+                            context = context,
+                            userId = authState.userId,
+                            stage = "revisi_seminar_proposal",
+                            studentName = nama.trim(),
+                            nim = npm.trim(),
+                            phone = nomorHp.trim(),
+                            title = judulProposal.trim(),
+                            titleEnglish = null,
+                            supervisor1 = pembimbing1.trim(),
+                            supervisor2 = pengujiProposal.trim(),
+                            examiner1 = pengujiProposal.trim(),
+                            examiner2 = null,
+                            files = selectedFileUris.toMap()
+                        )
                     },
-                    description = if (isDraftSaved) {
-                        "Draft revisi seminar proposal tersimpan sementara di halaman ini."
-                    } else {
-                        "Dosen penguji proposal akan otomatis disimpan sebagai Pembimbing 2. Pastikan dosen yang dipilih sudah benar sebelum dikirim."
-                    }
-                )
-            }
-
-            item {
-                Row(
+                    enabled = isValid,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    shape = RoundedCornerShape(100.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SimtaYellow,
+                        contentColor = Color.Black,
+                        disabledContainerColor = Color(0xFFE0E0E0),
+                        disabledContentColor = Color.Gray
+                    )
                 ) {
-                    OutlinedButton(
-                        onClick = {
-                            isDraftSaved = true
-
-                            Toast.makeText(
-                                context,
-                                "Draft revisi seminar proposal berhasil disimpan",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
-                        enabled = !uploadState.isLoading,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(100.dp)
-                    ) {
-                        Text(text = "Simpan Draft")
-                    }
-
-                    Button(
-                        onClick = {
-                            uploadBerkasViewModel.submitRegistration(
-                                context = context,
-                                userId = authState.userId,
-                                stage = "revisi_seminar_proposal",
-                                studentName = nama.trim(),
-                                nim = npm.trim(),
-                                phone = null,
-                                title = judulRevisi.trim(),
-                                titleEnglish = null,
-                                supervisor1 = pembimbing1.trim(),
-                                supervisor2 = pengujiProposal.trim(),
-                                examiner1 = pengujiProposal.trim(),
-                                examiner2 = null,
-                                files = selectedFileUris.toMap()
-                            )
-                        },
-                        enabled = isValid,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(100.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = SimtaYellow,
-                            contentColor = Color.Black,
-                            disabledContainerColor = Color(0xFFE0E0E0),
-                            disabledContentColor = Color.Gray
-                        )
-                    ) {
-                        Text(
-                            text = if (uploadState.isLoading) {
-                                "Mengirim..."
-                            } else {
-                                "Kirim Revisi"
-                            }
-                        )
-                    }
+                    Text(
+                        text = if (uploadState.isLoading) {
+                            "Mengirim..."
+                        } else {
+                            "Upload Revisi Seminar Proposal"
+                        }
+                    )
                 }
             }
         }

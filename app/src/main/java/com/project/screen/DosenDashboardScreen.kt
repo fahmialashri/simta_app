@@ -128,8 +128,8 @@ fun DosenDashboardScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 32.dp)
+                .padding(horizontal = 20.dp)
+                .padding(top = 32.dp, bottom = 16.dp)
         ) {
             HeaderSection(
                 name = authState.name ?: "Dosen Pembimbing",
@@ -172,129 +172,138 @@ fun DosenDashboardScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
-            when {
-                dashboardState.isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = SimtaRed)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                when {
+                    dashboardState.isLoading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = SimtaRed)
+                        }
                     }
-                }
 
-                dashboardState.errorMessage != null -> {
-                    ErrorCard(
-                        message = dashboardState.errorMessage ?: "Terjadi kesalahan"
-                    )
-                }
-            }
-
-            dashboardState.successMessage?.let { message ->
-                SuccessCard(message = message)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            Text(
-                text = "Mahasiswa Bimbingan",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 18.sp,
-                color = Color.Black
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (!dashboardState.isLoading && dashboardState.errorMessage == null) {
-                if (dashboardState.supervisedStudents.isEmpty()) {
-                    EmptyCard(
-                        text = "Belum ada mahasiswa bimbingan yang sudah disetujui Kaprodi."
-                    )
-                } else {
-                    dashboardState.supervisedStudents.forEach { studentItem ->
-                        SupervisedStudentCard(item = studentItem)
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Review Menunggu",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 18.sp,
-                color = Color.Black
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (!dashboardState.isLoading && dashboardState.errorMessage == null) {
-                if (waitingReviews.isEmpty()) {
-                    EmptyCard(
-                        text = "Belum ada dokumen BAB yang menunggu diperiksa."
-                    )
-                } else {
-                    waitingReviews.forEach { reviewItem ->
-                        ReviewCard(
-                            item = reviewItem,
-                            onOpenUrl = { url ->
-                                context.openUrl(url)
-                            },
-                            onApproveClick = { note ->
-                                dosenDashboardViewModel.approveChapter(
-                                    chapterId = reviewItem.chapter.id,
-                                    lecturerId = authState.lecturerId,
-                                    note = note
-                                )
-                            },
-                            onRevisionClick = { note ->
-                                dosenDashboardViewModel.requestRevision(
-                                    chapterId = reviewItem.chapter.id,
-                                    lecturerId = authState.lecturerId,
-                                    note = note
-                                )
-                            }
+                    dashboardState.errorMessage != null -> {
+                        ErrorCard(
+                            message = dashboardState.errorMessage ?: "Terjadi kesalahan"
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                dashboardState.successMessage?.let { message ->
+                    SuccessCard(message = message)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
-            Text(
-                text = "History Bimbingan",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 18.sp,
-                color = Color.Black
-            )
+                Text(
+                    text = "Mahasiswa Bimbingan",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    color = Color.Black
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            if (!dashboardState.isLoading && dashboardState.errorMessage == null) {
-                if (historyReviews.isEmpty()) {
-                    EmptyCard(
-                        text = "Belum ada history bimbingan mahasiswa."
-                    )
-                } else {
-                    historyReviews.forEach { historyItem ->
-                        HistoryCard(
-                            item = historyItem,
-                            onOpenUrl = { url ->
-                                context.openUrl(url)
-                            }
+                if (!dashboardState.isLoading && dashboardState.errorMessage == null) {
+                    if (dashboardState.supervisedStudents.isEmpty()) {
+                        EmptyCard(
+                            text = "Belum ada mahasiswa bimbingan yang sudah disetujui Kaprodi."
                         )
-
-                        Spacer(modifier = Modifier.height(16.dp))
+                    } else {
+                        dashboardState.supervisedStudents.forEach { studentItem ->
+                            SupervisedStudentCard(item = studentItem)
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Review Menunggu",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    color = Color.Black
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (!dashboardState.isLoading && dashboardState.errorMessage == null) {
+                    if (waitingReviews.isEmpty()) {
+                        EmptyCard(
+                            text = "Belum ada dokumen BAB yang menunggu diperiksa."
+                        )
+                    } else {
+                        waitingReviews.forEach { reviewItem ->
+                            ReviewCard(
+                                item = reviewItem,
+                                onOpenUrl = { url ->
+                                    context.openUrl(url)
+                                },
+                                onApproveClick = { note ->
+                                    dosenDashboardViewModel.approveChapter(
+                                        chapterId = reviewItem.chapter.id,
+                                        lecturerId = authState.lecturerId,
+                                        note = note
+                                    )
+                                },
+                                onRevisionClick = { note ->
+                                    dosenDashboardViewModel.requestRevision(
+                                        chapterId = reviewItem.chapter.id,
+                                        lecturerId = authState.lecturerId,
+                                        note = note
+                                    )
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "History Bimbingan",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    color = Color.Black
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (!dashboardState.isLoading && dashboardState.errorMessage == null) {
+                    if (historyReviews.isEmpty()) {
+                        EmptyCard(
+                            text = "Belum ada history bimbingan mahasiswa."
+                        )
+                    } else {
+                        historyReviews.forEach { historyItem ->
+                            HistoryCard(
+                                item = historyItem,
+                                onOpenUrl = { url ->
+                                    context.openUrl(url)
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }

@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.project.auth.AuthViewModel
+import com.project.component.MahasiswaBottomNavItem
+import com.project.component.MahasiswaBottomNavigation
 import com.project.navigation.Screen
 import com.project.upload.UploadBerkasViewModel
 
@@ -31,29 +33,9 @@ fun PendaftaranKolokiumScreen(
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         bottomBar = {
-            PengajuanBottomNavigation(
-                onHomeClick = {
-                    navController.navigate(Screen.MahasiswaDashboard.route) {
-                        popUpTo(Screen.MahasiswaDashboard.route) {
-                            inclusive = true
-                        }
-                    }
-                },
-                onPengajuanClick = {
-                    navController.navigate(Screen.Pengajuan.route) {
-                        popUpTo(Screen.MahasiswaDashboard.route)
-                    }
-                },
-                onBimbinganClick = {
-                    navController.navigate(Screen.Bimbingan.route) {
-                        popUpTo(Screen.MahasiswaDashboard.route)
-                    }
-                },
-                onProfileClick = {
-                    navController.navigate(Screen.Profile.route) {
-                        popUpTo(Screen.MahasiswaDashboard.route)
-                    }
-                }
+            MahasiswaBottomNavigation(
+                navController = navController,
+                selectedItem = MahasiswaBottomNavItem.PENGAJUAN
             )
         }
     ) { paddingValues ->
@@ -93,12 +75,10 @@ fun PendaftaranKolokiumScreen(
 
                 PengajuanMenuCard(
                     title = "Upload Revisi Kolokium",
-                    subtitle = "Unggah berkas hasil revisi sidang kolokium",
+                    subtitle = "Unggah revisi setelah sidang kolokium",
                     icon = Icons.Default.UploadFile,
                     onClick = {
-                        navController.navigate(
-                            Screen.UploadBerkas.createRoute("revisi_kolokium")
-                        )
+                        navController.navigate(Screen.UploadRevisiKolokium.route)
                     }
                 )
             }

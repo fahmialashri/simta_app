@@ -18,6 +18,8 @@ data class UploadBerkasUiState(
     val errorMessage: String? = null,
     val uploadedCount: Int = 0,
     val submissions: List<ThesisSubmission> = emptyList(),
+    val selectedSubmission: ThesisSubmission? = null,
+    val selectedSubmissionDepartmentId: Long? = null,
     val selectedDocuments: List<ThesisSubmissionDocument> = emptyList()
 )
 
@@ -170,6 +172,94 @@ class UploadBerkasViewModel : ViewModel() {
         }
     }
 
+    fun loadSubmissionForPlotting(
+        submissionId: String
+    ) {
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    isSuccess = false,
+                    errorMessage = null
+                )
+
+                val submission = repository.getSubmissionById(submissionId)
+                    ?: throw Exception("Data pendaftaran tidak ditemukan.")
+
+                val departmentId = repository.getStudentDepartmentId(submission.studentId)
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    selectedSubmission = submission,
+                    selectedSubmissionDepartmentId = departmentId,
+                    errorMessage = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    selectedSubmission = null,
+                    selectedSubmissionDepartmentId = null,
+                    errorMessage = e.message ?: "Gagal mengambil data plotting."
+                )
+            }
+        }
+    }
+
+    fun saveExaminerPlotting(
+        submissionId: String,
+        examiner1: String,
+        examiner2: String?,
+        reloadStage: String? = null,
+        onSuccess: (() -> Unit)? = null
+    ) {
+        if (examiner1.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "Penguji 1 wajib dipilih."
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    isSuccess = false,
+                    errorMessage = null
+                )
+
+                repository.updateSubmissionExaminers(
+                    submissionId = submissionId,
+                    examiner1 = examiner1.trim(),
+                    examiner2 = examiner2?.trim()?.ifBlank { null }
+                )
+
+                val updatedSubmission = repository.getSubmissionById(submissionId)
+
+                val updatedSubmissions = if (reloadStage != null) {
+                    repository.getSubmissionsByStage(reloadStage)
+                } else {
+                    _uiState.value.submissions
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSuccess = true,
+                    selectedSubmission = updatedSubmission,
+                    submissions = updatedSubmissions,
+                    errorMessage = null
+                )
+
+                onSuccess?.invoke()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSuccess = false,
+                    errorMessage = e.message ?: "Gagal menyimpan plotting penguji."
+                )
+            }
+        }
+    }
+
     fun loadSubmissionsByStage(stage: String) {
         viewModelScope.launch {
             try {
@@ -195,9 +285,7 @@ class UploadBerkasViewModel : ViewModel() {
         }
     }
 
-    fun loadMySubmissions(
-        userId: String?
-    ) {
+    fun loadMySubmissions(userId: String?) {
         if (userId.isNullOrBlank()) {
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
@@ -280,10 +368,7 @@ class UploadBerkasViewModel : ViewModel() {
         }
     }
 
-    fun approveSubmission(
-        submissionId: String,
-        reloadStage: String? = null
-    ) {
+    fun approveSubmission(submissionId: String, reloadStage: String? = null) {
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(
@@ -317,10 +402,7 @@ class UploadBerkasViewModel : ViewModel() {
         }
     }
 
-    fun rejectSubmission(
-        submissionId: String,
-        reloadStage: String? = null
-    ) {
+    fun rejectSubmission(submissionId: String, reloadStage: String? = null) {
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(

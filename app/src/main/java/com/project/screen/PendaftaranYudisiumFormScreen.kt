@@ -5,18 +5,15 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,11 +30,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.project.auth.AuthViewModel
-import com.project.component.AppDropdownField
 import com.project.component.AppTextField
 import com.project.component.FormCard
 import com.project.component.FormTopBar
-import com.project.component.InfoBox
+import com.project.component.MahasiswaBottomNavItem
+import com.project.component.MahasiswaBottomNavigation
 import com.project.component.SectionTitle
 import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
@@ -47,6 +44,7 @@ import com.project.lecturer.LecturerViewModel
 import com.project.navigation.Screen
 import com.project.upload.UploadBerkasViewModel
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun PendaftaranYudisiumFormScreen(
     navController: NavHostController,
@@ -58,102 +56,48 @@ fun PendaftaranYudisiumFormScreen(
 
     val authState by authViewModel.uiState.collectAsState()
     val uploadState by uploadBerkasViewModel.uiState.collectAsState()
-    val lecturerState by lecturerViewModel.uiState.collectAsState()
 
     var nama by remember { mutableStateOf(authState.name.orEmpty()) }
     var npm by remember { mutableStateOf(authState.nim.orEmpty()) }
     var nomorHp by remember { mutableStateOf("") }
-    var judulIndonesia by remember { mutableStateOf("") }
-    var judulEnglish by remember { mutableStateOf("") }
-    var pembimbing1 by remember { mutableStateOf("") }
-    var pembimbing2 by remember { mutableStateOf("") }
-    var penguji1 by remember { mutableStateOf("") }
-    var penguji2 by remember { mutableStateOf("") }
-
-    var isDraftSaved by remember { mutableStateOf(false) }
+    var judulSkripsi by remember { mutableStateOf("") }
+    var judulInggris by remember { mutableStateOf("") }
 
     val selectedFileNames = remember { mutableStateMapOf<String, String>() }
     val selectedFileUris = remember { mutableStateMapOf<String, Uri>() }
 
-    val lecturerOptions = remember(lecturerState.lecturers) {
-        lecturerState.lecturers
-            .filter { it.isActive }
-            .map { it.fullName }
-            .distinct()
-    }
-
-    val pembimbing1Options = remember(lecturerOptions, pembimbing2, penguji1, penguji2) {
-        lecturerOptions.filter {
-            it != pembimbing2 &&
-                    it != penguji1 &&
-                    it != penguji2
-        }
-    }
-
-    val pembimbing2Options = remember(lecturerOptions, pembimbing1, penguji1, penguji2) {
-        lecturerOptions.filter {
-            it != pembimbing1 &&
-                    it != penguji1 &&
-                    it != penguji2
-        }
-    }
-
-    val penguji1Options = remember(lecturerOptions, pembimbing1, pembimbing2, penguji2) {
-        lecturerOptions.filter {
-            it != pembimbing1 &&
-                    it != pembimbing2 &&
-                    it != penguji2
-        }
-    }
-
-    val penguji2Options = remember(lecturerOptions, pembimbing1, pembimbing2, penguji1) {
-        lecturerOptions.filter {
-            it != pembimbing1 &&
-                    it != pembimbing2 &&
-                    it != penguji1
-        }
-    }
-
-    val dropdownEmptyText = if (authState.departmentId == null) {
-        "Program studi belum ditemukan"
-    } else if (lecturerState.isLoading) {
-        "Memuat data dosen..."
-    } else {
-        "Data dosen belum tersedia"
-    }
-
     val documents = remember {
         listOf(
             UploadFileItem(
-                key = "bukti_setuju_revisi_kolokium",
-                title = "Bukti Setuju Revisi Pasca Kolokium",
-                description = "File PDF atau gambar, maks. 10 MB"
+                key = "ktp",
+                title = "KTP",
+                description = "Format PDF atau gambar, maks. 10 MB"
             ),
             UploadFileItem(
-                key = "softfile_skripsi_word",
-                title = "Softfile Skripsi (Word)",
-                description = "Lengkap: cover, lampiran, daftar pustaka. Format .doc atau .docx",
-                mimeTypes = listOf(
-                    "application/msword",
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+                key = "kartu_keluarga",
+                title = "Kartu Keluarga",
+                description = "Format PDF atau gambar, maks. 10 MB"
             ),
             UploadFileItem(
-                key = "skripsi_pdf_ttd",
-                title = "Skripsi PDF (Bertanda Tangan)",
-                description = "Wajib termasuk lembar pengesahan. Format PDF, maks. 10 MB",
+                key = "ijazah_terakhir",
+                title = "Ijazah Terakhir",
+                description = "Format PDF atau gambar, maks. 10 MB"
+            ),
+            UploadFileItem(
+                key = "transkrip_nilai",
+                title = "Transkrip Nilai",
+                description = "Format PDF, maks. 10 MB",
                 mimeTypes = listOf("application/pdf")
             ),
             UploadFileItem(
-                key = "lembar_pengesahan_pdf",
-                title = "Lembar Pengesahan (PDF)",
-                description = "Lembar pengesahan terpisah yang sudah ditandatangani. Maks. 10 MB",
-                mimeTypes = listOf("application/pdf")
+                key = "bukti_bebas_perpustakaan",
+                title = "Bukti Bebas Perpustakaan",
+                description = "Format PDF atau gambar, maks. 10 MB"
             ),
             UploadFileItem(
-                key = "bukti_loa_artikel",
-                title = "Bukti LOA Artikel Ilmiah",
-                description = "Capture form submit atau bukti konfirmasi artikel ilmiah"
+                key = "bukti_revisi_skripsi",
+                title = "Bukti Revisi Skripsi",
+                description = "Format PDF atau gambar, maks. 10 MB"
             )
         )
     }
@@ -162,54 +106,13 @@ fun PendaftaranYudisiumFormScreen(
         nama.isNotBlank() &&
                 npm.isNotBlank() &&
                 nomorHp.isNotBlank() &&
-                judulIndonesia.isNotBlank() &&
-                judulEnglish.isNotBlank() &&
-                pembimbing1.isNotBlank() &&
-                pembimbing2.isNotBlank() &&
-                penguji1.isNotBlank() &&
-                penguji2.isNotBlank() &&
+                judulSkripsi.isNotBlank() &&
                 documents.all { selectedFileUris.containsKey(it.key) } &&
                 !uploadState.isLoading
-
-    LaunchedEffect(authState.departmentId) {
-        lecturerViewModel.loadLecturersByDepartment(authState.departmentId)
-    }
 
     LaunchedEffect(authState.name, authState.nim) {
         if (nama.isBlank()) nama = authState.name.orEmpty()
         if (npm.isBlank()) npm = authState.nim.orEmpty()
-    }
-
-    LaunchedEffect(lecturerOptions) {
-        if (pembimbing1.isNotBlank() && pembimbing1 !in lecturerOptions) {
-            pembimbing1 = ""
-        }
-
-        if (pembimbing2.isNotBlank() && pembimbing2 !in lecturerOptions) {
-            pembimbing2 = ""
-        }
-
-        if (penguji1.isNotBlank() && penguji1 !in lecturerOptions) {
-            penguji1 = ""
-        }
-
-        if (penguji2.isNotBlank() && penguji2 !in lecturerOptions) {
-            penguji2 = ""
-        }
-    }
-
-    LaunchedEffect(pembimbing1, pembimbing2, penguji1, penguji2) {
-        if (pembimbing1.isNotBlank() && pembimbing1 == pembimbing2) {
-            pembimbing2 = ""
-        }
-
-        if (penguji1.isNotBlank() && penguji1 in listOf(pembimbing1, pembimbing2)) {
-            penguji1 = ""
-        }
-
-        if (penguji2.isNotBlank() && penguji2 in listOf(pembimbing1, pembimbing2, penguji1)) {
-            penguji2 = ""
-        }
     }
 
     LaunchedEffect(uploadState.isSuccess) {
@@ -223,7 +126,9 @@ fun PendaftaranYudisiumFormScreen(
             uploadBerkasViewModel.resetState()
 
             navController.navigate(Screen.MahasiswaDashboard.route) {
-                popUpTo(Screen.Pengajuan.route) { inclusive = false }
+                popUpTo(Screen.Pengajuan.route) {
+                    inclusive = false
+                }
                 launchSingleTop = true
             }
         }
@@ -241,6 +146,12 @@ fun PendaftaranYudisiumFormScreen(
                 title = "Pendaftaran Yudisium",
                 onBackClick = { navController.popBackStack() }
             )
+        },
+        bottomBar = {
+            MahasiswaBottomNavigation(
+                navController = navController,
+                selectedItem = MahasiswaBottomNavItem.PENGAJUAN
+            )
         }
     ) { padding ->
         LazyColumn(
@@ -252,20 +163,20 @@ fun PendaftaranYudisiumFormScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = 14.dp,
-                bottom = 28.dp
+                bottom = 96.dp
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
                 UploadPageAlert(
-                    text = "Tahap Akhir Tugas Akhir. Lengkapi seluruh berkas final sebelum daftar yudisium."
+                    text = "Form pendaftaran yudisium. Pastikan seluruh persyaratan kelulusan sudah lengkap."
                 )
             }
 
             item {
                 SectionTitle(
-                    icon = Icons.Rounded.Edit,
-                    title = "Data Diri"
+                    icon = Icons.Rounded.UploadFile,
+                    title = "Data Mahasiswa"
                 )
             }
 
@@ -273,7 +184,7 @@ fun PendaftaranYudisiumFormScreen(
                 FormCard {
                     AppTextField(
                         label = "Nama Lengkap",
-                        placeholder = "Sesuai PUEBI. Contoh: Ring Karanuci",
+                        placeholder = "Nama lengkap mahasiswa",
                         value = nama,
                         onValueChange = { nama = it }
                     )
@@ -287,7 +198,7 @@ fun PendaftaranYudisiumFormScreen(
 
                     AppTextField(
                         label = "Nomor Handphone",
-                        placeholder = "Gunakan 62 sebagai pengganti 0. Contoh: 628123456789",
+                        placeholder = "Contoh: 628123456789",
                         value = nomorHp,
                         onValueChange = { nomorHp = it }
                     )
@@ -296,78 +207,27 @@ fun PendaftaranYudisiumFormScreen(
 
             item {
                 SectionTitle(
-                    icon = Icons.Rounded.Edit,
-                    title = "Judul Skripsi Final"
+                    icon = Icons.Rounded.UploadFile,
+                    title = "Data Skripsi"
                 )
             }
 
             item {
                 FormCard {
                     AppTextField(
-                        label = "Judul Skripsi (Bahasa Indonesia)",
-                        placeholder = "Tulis judul final dalam Bahasa Indonesia...",
-                        value = judulIndonesia,
+                        label = "Judul Skripsi",
+                        placeholder = "Tulis judul skripsi...",
+                        value = judulSkripsi,
                         minLines = 3,
-                        onValueChange = { judulIndonesia = it }
+                        onValueChange = { judulSkripsi = it }
                     )
 
                     AppTextField(
-                        label = "Judul Skripsi (English)",
-                        placeholder = "Write the final title in English...",
-                        value = judulEnglish,
-                        minLines = 3,
-                        onValueChange = { judulEnglish = it }
-                    )
-                }
-            }
-
-            item {
-                SectionTitle(
-                    icon = Icons.Rounded.Edit,
-                    title = "Pembimbing & Penguji"
-                )
-            }
-
-            item {
-                FormCard {
-                    AppDropdownField(
-                        label = "Pembimbing 1",
-                        placeholder = "Pilih pembimbing 1",
-                        value = pembimbing1,
-                        options = pembimbing1Options,
-                        enabled = !lecturerState.isLoading,
-                        emptyText = dropdownEmptyText,
-                        onSelect = { pembimbing1 = it }
-                    )
-
-                    AppDropdownField(
-                        label = "Pembimbing 2",
-                        placeholder = "Pilih pembimbing 2",
-                        value = pembimbing2,
-                        options = pembimbing2Options,
-                        enabled = !lecturerState.isLoading,
-                        emptyText = dropdownEmptyText,
-                        onSelect = { pembimbing2 = it }
-                    )
-
-                    AppDropdownField(
-                        label = "Penguji 1",
-                        placeholder = "Pilih penguji 1",
-                        value = penguji1,
-                        options = penguji1Options,
-                        enabled = !lecturerState.isLoading,
-                        emptyText = dropdownEmptyText,
-                        onSelect = { penguji1 = it }
-                    )
-
-                    AppDropdownField(
-                        label = "Penguji 2",
-                        placeholder = "Pilih penguji 2",
-                        value = penguji2,
-                        options = penguji2Options,
-                        enabled = !lecturerState.isLoading,
-                        emptyText = dropdownEmptyText,
-                        onSelect = { penguji2 = it }
+                        label = "Judul Skripsi Bahasa Inggris",
+                        placeholder = "Opsional",
+                        value = judulInggris,
+                        minLines = 2,
+                        onValueChange = { judulInggris = it }
                     )
                 }
             }
@@ -375,7 +235,7 @@ fun PendaftaranYudisiumFormScreen(
             item {
                 SectionTitle(
                     icon = Icons.Rounded.UploadFile,
-                    title = "Berkas Persetujuan & Revisi"
+                    title = "Berkas Yudisium"
                 )
             }
 
@@ -397,71 +257,37 @@ fun PendaftaranYudisiumFormScreen(
             }
 
             item {
-                InfoBox(
-                    title = if (isDraftSaved) {
-                        "Draft sudah disimpan"
-                    } else {
-                        "Sebelum mengirim — periksa ulang"
-                    },
-                    description = if (isDraftSaved) {
-                        "Draft pendaftaran yudisium tersimpan sementara di halaman ini. Data belum dikirim ke TU."
-                    } else {
-                        "Judul Indonesia & English final, dosen pembimbing dan penguji, lembar pengesahan, serta bukti LOA artikel sudah sesuai."
-                    }
-                )
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            isDraftSaved = true
-                            Toast.makeText(
-                                context,
-                                "Draft yudisium berhasil disimpan",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
-                        enabled = !uploadState.isLoading,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(100.dp)
-                    ) {
-                        Text(text = "Simpan Draft")
-                    }
-
-                    Button(
-                        onClick = {
-                            uploadBerkasViewModel.submitRegistration(
-                                context = context,
-                                userId = authState.userId,
-                                stage = "yudisium",
-                                studentName = nama.trim(),
-                                nim = npm.trim(),
-                                phone = nomorHp.trim(),
-                                title = judulIndonesia.trim(),
-                                titleEnglish = judulEnglish.trim(),
-                                supervisor1 = pembimbing1.trim(),
-                                supervisor2 = pembimbing2.trim(),
-                                examiner1 = penguji1.trim(),
-                                examiner2 = penguji2.trim(),
-                                files = selectedFileUris.toMap()
-                            )
-                        },
-                        enabled = isValid,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(100.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = SimtaYellow,
-                            contentColor = Color.Black,
-                            disabledContainerColor = Color(0xFFE0E0E0),
-                            disabledContentColor = Color.Gray
+                Button(
+                    onClick = {
+                        uploadBerkasViewModel.submitRegistration(
+                            context = context,
+                            userId = authState.userId,
+                            stage = "yudisium",
+                            studentName = nama.trim(),
+                            nim = npm.trim(),
+                            phone = nomorHp.trim(),
+                            title = judulSkripsi.trim(),
+                            titleEnglish = judulInggris.trim().ifBlank { null },
+                            supervisor1 = null,
+                            supervisor2 = null,
+                            examiner1 = null,
+                            examiner2 = null,
+                            files = selectedFileUris.toMap()
                         )
-                    ) {
-                        Text(text = if (uploadState.isLoading) "Mengirim..." else "Daftar Yudisium")
-                    }
+                    },
+                    enabled = isValid,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(100.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SimtaYellow,
+                        contentColor = Color.Black,
+                        disabledContainerColor = Color(0xFFE0E0E0),
+                        disabledContentColor = Color.Gray
+                    )
+                ) {
+                    Text(
+                        text = if (uploadState.isLoading) "Mengirim..." else "Daftar Yudisium"
+                    )
                 }
             }
         }

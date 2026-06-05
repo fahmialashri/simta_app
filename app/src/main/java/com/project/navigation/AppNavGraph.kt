@@ -51,6 +51,15 @@ fun AppNavGraph() {
     val bimbinganViewModel: BimbinganViewModel = viewModel()
     val uploadBerkasViewModel: UploadBerkasViewModel = viewModel()
 
+    fun navigateToLoginAfterLogout() {
+        navController.navigate(Screen.Login.route) {
+            popUpTo(0) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Screen.Splash.route
@@ -252,14 +261,11 @@ fun AppNavGraph() {
                 navController = navController,
                 authViewModel = authViewModel,
                 onLogout = {
-                    authViewModel.logout()
-
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) {
-                            inclusive = true
+                    authViewModel.logout(
+                        onSuccess = {
+                            navigateToLoginAfterLogout()
                         }
-                        launchSingleTop = true
-                    }
+                    )
                 }
             )
         }
@@ -269,14 +275,11 @@ fun AppNavGraph() {
                 navController = navController,
                 uploadBerkasViewModel = uploadBerkasViewModel,
                 onLogout = {
-                    authViewModel.logout()
-
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) {
-                            inclusive = true
+                    authViewModel.logout(
+                        onSuccess = {
+                            navigateToLoginAfterLogout()
                         }
-                        launchSingleTop = true
-                    }
+                    )
                 }
             )
         }
@@ -310,7 +313,9 @@ fun AppNavGraph() {
 
             TuPlottingPengujiScreen(
                 navController = navController,
-                stageId = stageId
+                stageId = stageId,
+                uploadBerkasViewModel = uploadBerkasViewModel,
+                lecturerViewModel = lecturerViewModel
             )
         }
 

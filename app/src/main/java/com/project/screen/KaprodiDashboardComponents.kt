@@ -156,18 +156,10 @@ internal fun KaprodiSubmissionCard(
         )
     }
 
-    if (showArchiveConfirm) {
+    if (showArchiveConfirm && normalizedStatus != "pending") {
         ConfirmArchiveDialog(
-            title = if (normalizedStatus == "pending") {
-                "Arsipkan Data Testing"
-            } else {
-                "Hapus History"
-            },
-            message = if (normalizedStatus == "pending") {
-                "Pengajuan baru ini akan dihapus dari tampilan Kaprodi. Data tidak dihapus permanen, hanya diarsipkan."
-            } else {
-                "History pengajuan ini akan dihapus dari tampilan Kaprodi. Data tidak dihapus permanen, hanya diarsipkan."
-            },
+            title = "Hapus History",
+            message = "History pengajuan ini akan dihapus dari tampilan Kaprodi. Data tidak dihapus permanen, hanya diarsipkan.",
             onDismiss = {
                 showArchiveConfirm = false
             },
@@ -434,22 +426,6 @@ internal fun KaprodiSubmissionCard(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedButton(
-                    onClick = {
-                        showArchiveConfirm = true
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Arsipkan Data Testing",
-                        color = Color(0xFF455A64),
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             } else {
                 KaprodiMessageCard(

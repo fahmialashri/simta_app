@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import com.project.core.SupabaseClientProvider
+import com.project.data.model.Profile
 import com.project.data.model.ThesisSubmission
 import com.project.data.model.ThesisSubmissionDocument
 import com.project.data.model.ThesisSubmissionDocumentInsert
@@ -13,6 +14,7 @@ import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -95,9 +97,11 @@ class ThesisDocumentRepository {
                     )
                 }
 
-                supabase
-                    .from("thesis_submission_documents")
-                    .insert(documentInserts)
+                if (documentInserts.isNotEmpty()) {
+                    supabase
+                        .from("thesis_submission_documents")
+                        .insert(documentInserts)
+                }
 
                 Result.success(submission)
             } catch (e: Exception) {
@@ -265,6 +269,59 @@ class ThesisDocumentRepository {
             .decodeList<ThesisSubmission>()
     }
 
+    suspend fun getSubmissionById(
+        submissionId: String
+    ): ThesisSubmission? {
+        return supabase
+            .from("thesis_submissions")
+            .select {
+                filter {
+                    eq("id", submissionId)
+                }
+            }
+            .decodeList<ThesisSubmission>()
+            .firstOrNull()
+    }
+
+    suspend fun getStudentDepartmentId(
+        studentId: String
+    ): Long? {
+        return supabase
+            .from("profiles")
+            .select {
+                filter {
+                    eq("id", studentId)
+                }
+            }
+            .decodeList<Profile>()
+            .firstOrNull()
+            ?.departmentId
+    }
+
+    suspend fun updateSubmissionExaminers(
+        submissionId: String,
+        examiner1: String,
+        examiner2: String?
+    ) {
+        supabase
+            .from("thesis_submissions")
+            .update(
+                buildJsonObject {
+                    put("examiner_1", examiner1)
+
+                    if (examiner2.isNullOrBlank()) {
+                        put("examiner_2", JsonNull)
+                    } else {
+                        put("examiner_2", examiner2)
+                    }
+                }
+            ) {
+                filter {
+                    eq("id", submissionId)
+                }
+            }
+    }
+
     suspend fun getPendingSubmissions(): List<ThesisSubmission> {
         return supabase
             .from("thesis_submissions")
@@ -300,7 +357,6 @@ class ThesisDocumentRepository {
             .update(
                 buildJsonObject {
                     put("status", status)
-                    put("updated_at", "now()")
                 }
             ) {
                 filter {

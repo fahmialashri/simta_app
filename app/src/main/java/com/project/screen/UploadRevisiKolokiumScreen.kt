@@ -5,18 +5,15 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,7 +34,8 @@ import com.project.component.AppDropdownField
 import com.project.component.AppTextField
 import com.project.component.FormCard
 import com.project.component.FormTopBar
-import com.project.component.InfoBox
+import com.project.component.MahasiswaBottomNavItem
+import com.project.component.MahasiswaBottomNavigation
 import com.project.component.SectionTitle
 import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
@@ -62,14 +60,13 @@ fun UploadRevisiKolokiumScreen(
 
     var nama by remember { mutableStateOf(authState.name.orEmpty()) }
     var npm by remember { mutableStateOf(authState.nim.orEmpty()) }
+    var nomorHp by remember { mutableStateOf("") }
+    var judulSkripsi by remember { mutableStateOf("") }
+
     var pembimbing1 by remember { mutableStateOf("") }
     var pembimbing2 by remember { mutableStateOf("") }
     var penguji1 by remember { mutableStateOf("") }
     var penguji2 by remember { mutableStateOf("") }
-    var tanggalKolokium by remember { mutableStateOf("") }
-    var judulIndonesia by remember { mutableStateOf("") }
-    var judulEnglish by remember { mutableStateOf("") }
-    var isDraftSaved by remember { mutableStateOf(false) }
 
     val selectedFileNames = remember { mutableStateMapOf<String, String>() }
     val selectedFileUris = remember { mutableStateMapOf<String, Uri>() }
@@ -82,35 +79,19 @@ fun UploadRevisiKolokiumScreen(
     }
 
     val pembimbing1Options = remember(lecturerOptions, pembimbing2, penguji1, penguji2) {
-        lecturerOptions.filter {
-            it != pembimbing2 &&
-                    it != penguji1 &&
-                    it != penguji2
-        }
+        lecturerOptions.filter { it != pembimbing2 && it != penguji1 && it != penguji2 }
     }
 
     val pembimbing2Options = remember(lecturerOptions, pembimbing1, penguji1, penguji2) {
-        lecturerOptions.filter {
-            it != pembimbing1 &&
-                    it != penguji1 &&
-                    it != penguji2
-        }
+        lecturerOptions.filter { it != pembimbing1 && it != penguji1 && it != penguji2 }
     }
 
     val penguji1Options = remember(lecturerOptions, pembimbing1, pembimbing2, penguji2) {
-        lecturerOptions.filter {
-            it != pembimbing1 &&
-                    it != pembimbing2 &&
-                    it != penguji2
-        }
+        lecturerOptions.filter { it != pembimbing1 && it != pembimbing2 && it != penguji2 }
     }
 
     val penguji2Options = remember(lecturerOptions, pembimbing1, pembimbing2, penguji1) {
-        lecturerOptions.filter {
-            it != pembimbing1 &&
-                    it != pembimbing2 &&
-                    it != penguji1
-        }
+        lecturerOptions.filter { it != pembimbing1 && it != pembimbing2 && it != penguji1 }
     }
 
     val dropdownEmptyText = if (authState.departmentId == null) {
@@ -124,9 +105,9 @@ fun UploadRevisiKolokiumScreen(
     val documents = remember {
         listOf(
             UploadFileItem(
-                key = "soft_file_skripsi_revisi",
-                title = "Soft File Skripsi Revisi",
-                description = "Format Word atau PDF (.pdf / .docx), maks. 10 MB",
+                key = "skripsi_revisi_kolokium",
+                title = "File Skripsi Revisi Kolokium",
+                description = "Format PDF atau Word (.pdf / .doc / .docx), maks. 10 MB",
                 mimeTypes = listOf(
                     "application/pdf",
                     "application/msword",
@@ -134,24 +115,9 @@ fun UploadRevisiKolokiumScreen(
                 )
             ),
             UploadFileItem(
-                key = "bukti_persetujuan_pembimbing_1",
-                title = "Bukti Persetujuan Pembimbing 1",
-                description = "Screenshot persetujuan pembimbing 1"
-            ),
-            UploadFileItem(
-                key = "bukti_persetujuan_pembimbing_2",
-                title = "Bukti Persetujuan Pembimbing 2",
-                description = "Screenshot persetujuan pembimbing 2"
-            ),
-            UploadFileItem(
-                key = "bukti_persetujuan_penguji_1",
-                title = "Bukti Persetujuan Penguji 1",
-                description = "Screenshot persetujuan penguji 1"
-            ),
-            UploadFileItem(
-                key = "bukti_persetujuan_penguji_2",
-                title = "Bukti Persetujuan Penguji 2",
-                description = "Screenshot persetujuan penguji 2"
+                key = "lembar_revisi_kolokium",
+                title = "Lembar Revisi Kolokium",
+                description = "Upload lembar revisi yang sudah ditandatangani"
             )
         )
     }
@@ -159,13 +125,12 @@ fun UploadRevisiKolokiumScreen(
     val isValid =
         nama.isNotBlank() &&
                 npm.isNotBlank() &&
+                nomorHp.isNotBlank() &&
+                judulSkripsi.isNotBlank() &&
                 pembimbing1.isNotBlank() &&
                 pembimbing2.isNotBlank() &&
                 penguji1.isNotBlank() &&
                 penguji2.isNotBlank() &&
-                tanggalKolokium.isNotBlank() &&
-                judulIndonesia.isNotBlank() &&
-                judulEnglish.isNotBlank() &&
                 documents.all { selectedFileUris.containsKey(it.key) } &&
                 !uploadState.isLoading
 
@@ -184,42 +149,17 @@ fun UploadRevisiKolokiumScreen(
     }
 
     LaunchedEffect(lecturerOptions) {
-        if (pembimbing1.isNotBlank() && pembimbing1 !in lecturerOptions) {
-            pembimbing1 = ""
-        }
-
-        if (pembimbing2.isNotBlank() && pembimbing2 !in lecturerOptions) {
-            pembimbing2 = ""
-        }
-
-        if (penguji1.isNotBlank() && penguji1 !in lecturerOptions) {
-            penguji1 = ""
-        }
-
-        if (penguji2.isNotBlank() && penguji2 !in lecturerOptions) {
-            penguji2 = ""
-        }
-    }
-
-    LaunchedEffect(pembimbing1, pembimbing2, penguji1, penguji2) {
-        if (pembimbing1.isNotBlank() && pembimbing1 == pembimbing2) {
-            pembimbing2 = ""
-        }
-
-        if (penguji1.isNotBlank() && penguji1 in listOf(pembimbing1, pembimbing2)) {
-            penguji1 = ""
-        }
-
-        if (penguji2.isNotBlank() && penguji2 in listOf(pembimbing1, pembimbing2, penguji1)) {
-            penguji2 = ""
-        }
+        if (pembimbing1.isNotBlank() && pembimbing1 !in lecturerOptions) pembimbing1 = ""
+        if (pembimbing2.isNotBlank() && pembimbing2 !in lecturerOptions) pembimbing2 = ""
+        if (penguji1.isNotBlank() && penguji1 !in lecturerOptions) penguji1 = ""
+        if (penguji2.isNotBlank() && penguji2 !in lecturerOptions) penguji2 = ""
     }
 
     LaunchedEffect(uploadState.isSuccess) {
         if (uploadState.isSuccess) {
             Toast.makeText(
                 context,
-                "Revisi kolokium berhasil dikirim ke TU",
+                "Upload revisi kolokium berhasil dikirim ke TU",
                 Toast.LENGTH_SHORT
             ).show()
 
@@ -247,8 +187,16 @@ fun UploadRevisiKolokiumScreen(
     Scaffold(
         topBar = {
             FormTopBar(
-                title = "Upload Revisi Kolokium",
-                onBackClick = { navController.popBackStack() }
+                title = "Revisi Kolokium",
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        },
+        bottomBar = {
+            MahasiswaBottomNavigation(
+                navController = navController,
+                selectedItem = MahasiswaBottomNavItem.PENGAJUAN
             )
         }
     ) { padding ->
@@ -261,33 +209,68 @@ fun UploadRevisiKolokiumScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = 14.dp,
-                bottom = 28.dp
+                bottom = 96.dp
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
                 UploadPageAlert(
-                    text = "Upload revisi kolokium setelah sidang. Pastikan revisi sudah disetujui pembimbing dan penguji."
+                    text = "Upload revisi kolokium. Pastikan seluruh revisi sudah sesuai arahan pembimbing dan penguji."
+                )
+            }
+
+            item {
+                SectionTitle(
+                    icon = Icons.Rounded.UploadFile,
+                    title = "Data Mahasiswa"
                 )
             }
 
             item {
                 FormCard {
                     AppTextField(
-                        label = "Nama",
+                        label = "Nama Lengkap",
+                        placeholder = "Nama lengkap mahasiswa",
                         value = nama,
                         onValueChange = { nama = it }
                     )
 
                     AppTextField(
                         label = "NPM",
+                        placeholder = "NPM lengkap anda",
                         value = npm,
                         onValueChange = { npm = it }
                     )
 
+                    AppTextField(
+                        label = "Nomor Handphone",
+                        placeholder = "Contoh: 628123456789",
+                        value = nomorHp,
+                        onValueChange = { nomorHp = it }
+                    )
+                }
+            }
+
+            item {
+                SectionTitle(
+                    icon = Icons.Rounded.UploadFile,
+                    title = "Data Revisi Kolokium"
+                )
+            }
+
+            item {
+                FormCard {
+                    AppTextField(
+                        label = "Judul Skripsi",
+                        placeholder = "Tulis judul skripsi...",
+                        value = judulSkripsi,
+                        minLines = 3,
+                        onValueChange = { judulSkripsi = it }
+                    )
+
                     AppDropdownField(
-                        label = "Pembimbing 1",
-                        placeholder = "Pilih dosen pembimbing 1",
+                        label = "Dosen Pembimbing 1",
+                        placeholder = "Pilih pembimbing 1",
                         value = pembimbing1,
                         options = pembimbing1Options,
                         enabled = !lecturerState.isLoading,
@@ -296,8 +279,8 @@ fun UploadRevisiKolokiumScreen(
                     )
 
                     AppDropdownField(
-                        label = "Pembimbing 2",
-                        placeholder = "Pilih dosen pembimbing 2",
+                        label = "Dosen Pembimbing 2",
+                        placeholder = "Pilih pembimbing 2",
                         value = pembimbing2,
                         options = pembimbing2Options,
                         enabled = !lecturerState.isLoading,
@@ -306,8 +289,8 @@ fun UploadRevisiKolokiumScreen(
                     )
 
                     AppDropdownField(
-                        label = "Penguji 1",
-                        placeholder = "Pilih dosen penguji 1",
+                        label = "Dosen Penguji 1",
+                        placeholder = "Pilih penguji 1",
                         value = penguji1,
                         options = penguji1Options,
                         enabled = !lecturerState.isLoading,
@@ -316,20 +299,13 @@ fun UploadRevisiKolokiumScreen(
                     )
 
                     AppDropdownField(
-                        label = "Penguji 2",
-                        placeholder = "Pilih dosen penguji 2",
+                        label = "Dosen Penguji 2",
+                        placeholder = "Pilih penguji 2",
                         value = penguji2,
                         options = penguji2Options,
                         enabled = !lecturerState.isLoading,
                         emptyText = dropdownEmptyText,
                         onSelect = { penguji2 = it }
-                    )
-
-                    AppTextField(
-                        label = "Tanggal Pelaksanaan Kolokium",
-                        placeholder = "Contoh: Rabu, 30 Oktober 2019",
-                        value = tanggalKolokium,
-                        onValueChange = { tanggalKolokium = it }
                     )
                 }
             }
@@ -337,7 +313,7 @@ fun UploadRevisiKolokiumScreen(
             item {
                 SectionTitle(
                     icon = Icons.Rounded.UploadFile,
-                    title = "Berkas Revisi Kolokium"
+                    title = "Berkas Revisi"
                 )
             }
 
@@ -359,100 +335,41 @@ fun UploadRevisiKolokiumScreen(
             }
 
             item {
-                SectionTitle(
-                    icon = Icons.Rounded.Edit,
-                    title = "Judul Revisi"
-                )
-            }
-
-            item {
-                FormCard {
-                    AppTextField(
-                        label = "Judul Skripsi Bahasa Indonesia Setelah Revisi",
-                        placeholder = "Tulis judul bahasa Indonesia yang sudah direvisi...",
-                        value = judulIndonesia,
-                        minLines = 3,
-                        onValueChange = { judulIndonesia = it }
-                    )
-
-                    AppTextField(
-                        label = "Judul Skripsi Bahasa Inggris Setelah Revisi",
-                        placeholder = "Tulis judul bahasa Inggris yang sudah direvisi...",
-                        value = judulEnglish,
-                        minLines = 3,
-                        onValueChange = { judulEnglish = it }
-                    )
-                }
-            }
-
-            item {
-                InfoBox(
-                    title = if (isDraftSaved) "Draft sudah disimpan" else "Catatan penting",
-                    description = if (isDraftSaved) {
-                        "Draft revisi kolokium tersimpan sementara di halaman ini."
-                    } else {
-                        "Pastikan seluruh revisi sudah disetujui oleh pembimbing dan penguji sebelum dikirim."
-                    }
-                )
-            }
-
-            item {
-                Row(
+                Button(
+                    onClick = {
+                        uploadBerkasViewModel.submitRegistration(
+                            context = context,
+                            userId = authState.userId,
+                            stage = "revisi_kolokium",
+                            studentName = nama.trim(),
+                            nim = npm.trim(),
+                            phone = nomorHp.trim(),
+                            title = judulSkripsi.trim(),
+                            titleEnglish = null,
+                            supervisor1 = pembimbing1.trim(),
+                            supervisor2 = pembimbing2.trim(),
+                            examiner1 = penguji1.trim(),
+                            examiner2 = penguji2.trim(),
+                            files = selectedFileUris.toMap()
+                        )
+                    },
+                    enabled = isValid,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    shape = RoundedCornerShape(100.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SimtaYellow,
+                        contentColor = Color.Black,
+                        disabledContainerColor = Color(0xFFE0E0E0),
+                        disabledContentColor = Color.Gray
+                    )
                 ) {
-                    OutlinedButton(
-                        onClick = {
-                            isDraftSaved = true
-                            Toast.makeText(
-                                context,
-                                "Draft revisi kolokium berhasil disimpan",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
-                        enabled = !uploadState.isLoading,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(100.dp)
-                    ) {
-                        Text(text = "Simpan Draft")
-                    }
-
-                    Button(
-                        onClick = {
-                            uploadBerkasViewModel.submitRegistration(
-                                context = context,
-                                userId = authState.userId,
-                                stage = "revisi_kolokium",
-                                studentName = nama.trim(),
-                                nim = npm.trim(),
-                                phone = null,
-                                title = judulIndonesia.trim(),
-                                titleEnglish = judulEnglish.trim(),
-                                supervisor1 = pembimbing1.trim(),
-                                supervisor2 = pembimbing2.trim(),
-                                examiner1 = penguji1.trim(),
-                                examiner2 = penguji2.trim(),
-                                files = selectedFileUris.toMap()
-                            )
-                        },
-                        enabled = isValid,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(100.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = SimtaYellow,
-                            contentColor = Color.Black,
-                            disabledContainerColor = Color(0xFFE0E0E0),
-                            disabledContentColor = Color.Gray
-                        )
-                    ) {
-                        Text(
-                            text = if (uploadState.isLoading) {
-                                "Mengirim..."
-                            } else {
-                                "Kirim Revisi"
-                            }
-                        )
-                    }
+                    Text(
+                        text = if (uploadState.isLoading) {
+                            "Mengirim..."
+                        } else {
+                            "Upload Revisi Kolokium"
+                        }
+                    )
                 }
             }
         }

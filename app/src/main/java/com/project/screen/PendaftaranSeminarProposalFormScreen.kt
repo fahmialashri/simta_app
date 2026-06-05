@@ -34,6 +34,8 @@ import com.project.component.AppDropdownField
 import com.project.component.AppTextField
 import com.project.component.FormCard
 import com.project.component.FormTopBar
+import com.project.component.MahasiswaBottomNavItem
+import com.project.component.MahasiswaBottomNavigation
 import com.project.component.SectionTitle
 import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
@@ -119,13 +121,8 @@ fun PendaftaranSeminarProposalFormScreen(
     }
 
     LaunchedEffect(authState.name, authState.nim) {
-        if (nama.isBlank()) {
-            nama = authState.name.orEmpty()
-        }
-
-        if (npm.isBlank()) {
-            npm = authState.nim.orEmpty()
-        }
+        if (nama.isBlank()) nama = authState.name.orEmpty()
+        if (npm.isBlank()) npm = authState.nim.orEmpty()
     }
 
     LaunchedEffect(lecturerOptions) {
@@ -155,11 +152,7 @@ fun PendaftaranSeminarProposalFormScreen(
 
     LaunchedEffect(uploadState.errorMessage) {
         uploadState.errorMessage?.let { message ->
-            Toast.makeText(
-                context,
-                message,
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -170,6 +163,12 @@ fun PendaftaranSeminarProposalFormScreen(
                 onBackClick = {
                     navController.popBackStack()
                 }
+            )
+        },
+        bottomBar = {
+            MahasiswaBottomNavigation(
+                navController = navController,
+                selectedItem = MahasiswaBottomNavItem.PENGAJUAN
             )
         }
     ) { padding ->
@@ -182,7 +181,7 @@ fun PendaftaranSeminarProposalFormScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = 14.dp,
-                bottom = 28.dp
+                bottom = 96.dp
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {

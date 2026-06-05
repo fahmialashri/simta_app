@@ -87,7 +87,13 @@ fun RegisterScreen(
 
     LaunchedEffect(Unit) {
         authViewModel.toastMessage.collect { message ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                message.toUserFriendlyAuthMessage(
+                    fallback = "Pendaftaran belum berhasil. Silakan coba lagi."
+                ),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -402,7 +408,9 @@ fun RegisterScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = state.errorMessage!!,
+                                text = state.errorMessage.toUserFriendlyAuthMessage(
+                                    fallback = "Pendaftaran belum berhasil. Silakan coba lagi."
+                                ),
                                 color = SimtaRed,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -474,7 +482,9 @@ fun RegisterScreen(
             },
             text = {
                 Text(
-                    text = state.errorMessage!!,
+                    text = state.errorMessage.toUserFriendlyAuthMessage(
+                        fallback = "Pendaftaran belum berhasil. Silakan coba lagi."
+                    ),
                     fontSize = 14.sp,
                     color = Color.DarkGray
                 )
@@ -499,5 +509,75 @@ fun RegisterScreen(
             containerColor = Color.White,
             shape = RoundedCornerShape(16.dp)
         )
+    }
+}
+
+private fun String?.toUserFriendlyAuthMessage(
+    fallback: String = "Terjadi kesalahan. Silakan coba lagi."
+): String {
+    val rawMessage = this
+        ?.trim()
+        ?.takeIf { it.isNotBlank() }
+        ?: return fallback
+
+    val message = rawMessage.lowercase()
+
+    return when {
+        "invalid login credentials" in message ||
+                "invalid credentials" in message ||
+                "email not confirmed" in message ||
+                "invalid email or password" in message ||
+                "400" in message && "auth" in message -> {
+            "Email atau kata sandi salah. Periksa kembali data login kamu."
+        }
+
+        "user already registered" in message ||
+                "already registered" in message ||
+                "already exists" in message ||
+                "duplicate key" in message -> {
+            "Email atau NIM sudah terdaftar. Silakan gunakan data lain atau masuk ke akun yang sudah ada."
+        }
+
+        "password should be at least" in message ||
+                "password" in message && "characters" in message -> {
+            "Kata sandi minimal 6 karakter."
+        }
+
+        "unable to validate email address" in message ||
+                "invalid email" in message -> {
+            "Format email belum valid. Gunakan alamat email yang benar."
+        }
+
+        "network" in message ||
+                "timeout" in message ||
+                "failed to connect" in message ||
+                "unable to resolve host" in message ||
+                "connection" in message -> {
+            "Koneksi bermasalah. Periksa internet kamu lalu coba lagi."
+        }
+
+        "unauthorized" in message ||
+                "jwt" in message ||
+                "invalid token" in message ||
+                "permission denied" in message ||
+                "row-level security" in message ||
+                "rls" in message ||
+                "supabase" in message ||
+                "postgrest" in message ||
+                "rest/v1" in message ||
+                "auth/v1" in message ||
+                "database" in message ||
+                "violates" in message ||
+                "relation" in message ||
+                "schema" in message ||
+                "column" in message -> {
+            "Sistem sedang mengalami kendala. Silakan coba lagi beberapa saat."
+        }
+
+        rawMessage.length > 120 -> {
+            fallback
+        }
+
+        else -> rawMessage
     }
 }

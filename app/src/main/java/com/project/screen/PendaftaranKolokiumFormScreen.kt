@@ -34,6 +34,8 @@ import com.project.component.AppDropdownField
 import com.project.component.AppTextField
 import com.project.component.FormCard
 import com.project.component.FormTopBar
+import com.project.component.MahasiswaBottomNavItem
+import com.project.component.MahasiswaBottomNavigation
 import com.project.component.SectionTitle
 import com.project.component.UploadFileCard
 import com.project.component.UploadFileItem
@@ -59,10 +61,13 @@ fun PendaftaranKolokiumFormScreen(
     var nama by remember { mutableStateOf(authState.name.orEmpty()) }
     var npm by remember { mutableStateOf(authState.nim.orEmpty()) }
     var nomorHp by remember { mutableStateOf("") }
+    var judulSkripsi by remember { mutableStateOf("") }
+    var judulInggris by remember { mutableStateOf("") }
+
     var pembimbing1 by remember { mutableStateOf("") }
     var pembimbing2 by remember { mutableStateOf("") }
-    var judulIndonesia by remember { mutableStateOf("") }
-    var judulEnglish by remember { mutableStateOf("") }
+    var penguji1 by remember { mutableStateOf("") }
+    var penguji2 by remember { mutableStateOf("") }
 
     val selectedFileNames = remember { mutableStateMapOf<String, String>() }
     val selectedFileUris = remember { mutableStateMapOf<String, Uri>() }
@@ -74,12 +79,20 @@ fun PendaftaranKolokiumFormScreen(
             .distinct()
     }
 
-    val pembimbing1Options = remember(lecturerOptions, pembimbing2) {
-        lecturerOptions.filter { it != pembimbing2 }
+    val pembimbing1Options = remember(lecturerOptions, pembimbing2, penguji1, penguji2) {
+        lecturerOptions.filter { it != pembimbing2 && it != penguji1 && it != penguji2 }
     }
 
-    val pembimbing2Options = remember(lecturerOptions, pembimbing1) {
-        lecturerOptions.filter { it != pembimbing1 }
+    val pembimbing2Options = remember(lecturerOptions, pembimbing1, penguji1, penguji2) {
+        lecturerOptions.filter { it != pembimbing1 && it != penguji1 && it != penguji2 }
+    }
+
+    val penguji1Options = remember(lecturerOptions, pembimbing1, pembimbing2, penguji2) {
+        lecturerOptions.filter { it != pembimbing1 && it != pembimbing2 && it != penguji2 }
+    }
+
+    val penguji2Options = remember(lecturerOptions, pembimbing1, pembimbing2, penguji1) {
+        lecturerOptions.filter { it != pembimbing1 && it != pembimbing2 && it != penguji1 }
     }
 
     val dropdownEmptyText = if (authState.departmentId == null) {
@@ -93,24 +106,14 @@ fun PendaftaranKolokiumFormScreen(
     val documents = remember {
         listOf(
             UploadFileItem(
-                key = "bukti_lunas_ukt",
-                title = "Bukti Lunas Administrasi (UKT)",
+                key = "krs_pengambilan_skripsi",
+                title = "Bukti KRS Pengambilan Skripsi",
                 description = "Format PDF atau gambar, maks. 10 MB"
             ),
             UploadFileItem(
-                key = "krs_pengambilan_skripsi",
-                title = "KRS Pengambilan Skripsi",
-                description = "Telah ditandatangani dosen wali. Format PDF atau gambar, maks. 10 MB"
-            ),
-            UploadFileItem(
-                key = "transkrip_sementara",
-                title = "Transkrip Sementara (ECAMPUS)",
-                description = "Unduh dari ECAMPUS. Format PDF atau gambar, maks. 10 MB"
-            ),
-            UploadFileItem(
-                key = "file_skripsi_lengkap",
-                title = "File Skripsi Lengkap",
-                description = "Cover sampai lampiran, format NAMA_SKRIPSI.pdf",
+                key = "draft_skripsi",
+                title = "Draft Skripsi",
+                description = "Format PDF atau Word (.pdf / .doc / .docx), maks. 10 MB",
                 mimeTypes = listOf(
                     "application/pdf",
                     "application/msword",
@@ -119,13 +122,8 @@ fun PendaftaranKolokiumFormScreen(
             ),
             UploadFileItem(
                 key = "bukti_persetujuan_pembimbing",
-                title = "Bukti Persetujuan Pembimbing 1 & 2",
-                description = "Screenshot chat WA, email, atau bukti persetujuan. Maks. 10 MB"
-            ),
-            UploadFileItem(
-                key = "bukti_plagiarisme",
-                title = "Bukti Cek Plagiarisme BAB 1-5",
-                description = "Maksimal plagiarisme 30%. Format gambar atau PDF"
+                title = "Bukti Persetujuan Pembimbing",
+                description = "Screenshot chat, email, atau bukti persetujuan pembimbing"
             )
         )
     }
@@ -134,10 +132,11 @@ fun PendaftaranKolokiumFormScreen(
         nama.isNotBlank() &&
                 npm.isNotBlank() &&
                 nomorHp.isNotBlank() &&
+                judulSkripsi.isNotBlank() &&
                 pembimbing1.isNotBlank() &&
                 pembimbing2.isNotBlank() &&
-                judulIndonesia.isNotBlank() &&
-                judulEnglish.isNotBlank() &&
+                penguji1.isNotBlank() &&
+                penguji2.isNotBlank() &&
                 documents.all { selectedFileUris.containsKey(it.key) } &&
                 !uploadState.isLoading
 
@@ -151,19 +150,10 @@ fun PendaftaranKolokiumFormScreen(
     }
 
     LaunchedEffect(lecturerOptions) {
-        if (pembimbing1.isNotBlank() && pembimbing1 !in lecturerOptions) {
-            pembimbing1 = ""
-        }
-
-        if (pembimbing2.isNotBlank() && pembimbing2 !in lecturerOptions) {
-            pembimbing2 = ""
-        }
-    }
-
-    LaunchedEffect(pembimbing1, pembimbing2) {
-        if (pembimbing1.isNotBlank() && pembimbing1 == pembimbing2) {
-            pembimbing2 = ""
-        }
+        if (pembimbing1.isNotBlank() && pembimbing1 !in lecturerOptions) pembimbing1 = ""
+        if (pembimbing2.isNotBlank() && pembimbing2 !in lecturerOptions) pembimbing2 = ""
+        if (penguji1.isNotBlank() && penguji1 !in lecturerOptions) penguji1 = ""
+        if (penguji2.isNotBlank() && penguji2 !in lecturerOptions) penguji2 = ""
     }
 
     LaunchedEffect(uploadState.isSuccess) {
@@ -177,7 +167,9 @@ fun PendaftaranKolokiumFormScreen(
             uploadBerkasViewModel.resetState()
 
             navController.navigate(Screen.MahasiswaDashboard.route) {
-                popUpTo(Screen.Pengajuan.route) { inclusive = false }
+                popUpTo(Screen.Pengajuan.route) {
+                    inclusive = false
+                }
                 launchSingleTop = true
             }
         }
@@ -192,8 +184,14 @@ fun PendaftaranKolokiumFormScreen(
     Scaffold(
         topBar = {
             FormTopBar(
-                title = "Pendaftaran Sidang Kolokium",
+                title = "Pendaftaran Kolokium",
                 onBackClick = { navController.popBackStack() }
+            )
+        },
+        bottomBar = {
+            MahasiswaBottomNavigation(
+                navController = navController,
+                selectedItem = MahasiswaBottomNavItem.PENGAJUAN
             )
         }
     ) { padding ->
@@ -206,20 +204,20 @@ fun PendaftaranKolokiumFormScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = 14.dp,
-                bottom = 28.dp
+                bottom = 96.dp
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
                 UploadPageAlert(
-                    text = "Form pendaftaran sidang kolokium. Pastikan semua berkas sudah lengkap dan telah disetujui kedua dosen pembimbing."
+                    text = "Form pendaftaran kolokium. Pastikan draft skripsi sudah siap dan disetujui pembimbing."
                 )
             }
 
             item {
                 SectionTitle(
                     icon = Icons.Rounded.UploadFile,
-                    title = "Data Diri"
+                    title = "Data Mahasiswa"
                 )
             }
 
@@ -227,7 +225,7 @@ fun PendaftaranKolokiumFormScreen(
                 FormCard {
                     AppTextField(
                         label = "Nama Lengkap",
-                        placeholder = "Sesuai PUEBI. Contoh: Ade Mulyadi",
+                        placeholder = "Nama lengkap mahasiswa",
                         value = nama,
                         onValueChange = { nama = it }
                     )
@@ -241,7 +239,7 @@ fun PendaftaranKolokiumFormScreen(
 
                     AppTextField(
                         label = "Nomor Handphone",
-                        placeholder = "Gunakan 62 sebagai pengganti 0. Contoh: 628123456789",
+                        placeholder = "Contoh: 628123456789",
                         value = nomorHp,
                         onValueChange = { nomorHp = it }
                     )
@@ -251,41 +249,30 @@ fun PendaftaranKolokiumFormScreen(
             item {
                 SectionTitle(
                     icon = Icons.Rounded.UploadFile,
-                    title = "Judul Skripsi"
+                    title = "Data Skripsi"
                 )
             }
 
             item {
                 FormCard {
                     AppTextField(
-                        label = "Judul Skripsi (Bahasa Indonesia)",
-                        placeholder = "Tulis judul dalam Bahasa Indonesia...",
-                        value = judulIndonesia,
+                        label = "Judul Skripsi",
+                        placeholder = "Tulis judul skripsi...",
+                        value = judulSkripsi,
                         minLines = 3,
-                        onValueChange = { judulIndonesia = it }
+                        onValueChange = { judulSkripsi = it }
                     )
 
                     AppTextField(
-                        label = "Judul Skripsi (English)",
-                        placeholder = "Write the title in English...",
-                        value = judulEnglish,
-                        minLines = 3,
-                        onValueChange = { judulEnglish = it }
+                        label = "Judul Skripsi Bahasa Inggris",
+                        placeholder = "Opsional",
+                        value = judulInggris,
+                        minLines = 2,
+                        onValueChange = { judulInggris = it }
                     )
-                }
-            }
 
-            item {
-                SectionTitle(
-                    icon = Icons.Rounded.UploadFile,
-                    title = "Dosen Pembimbing"
-                )
-            }
-
-            item {
-                FormCard {
                     AppDropdownField(
-                        label = "Pembimbing Skripsi 1",
+                        label = "Dosen Pembimbing 1",
                         placeholder = "Pilih pembimbing 1",
                         value = pembimbing1,
                         options = pembimbing1Options,
@@ -295,7 +282,7 @@ fun PendaftaranKolokiumFormScreen(
                     )
 
                     AppDropdownField(
-                        label = "Pembimbing Skripsi 2",
+                        label = "Dosen Pembimbing 2",
                         placeholder = "Pilih pembimbing 2",
                         value = pembimbing2,
                         options = pembimbing2Options,
@@ -303,13 +290,33 @@ fun PendaftaranKolokiumFormScreen(
                         emptyText = dropdownEmptyText,
                         onSelect = { pembimbing2 = it }
                     )
+
+                    AppDropdownField(
+                        label = "Dosen Penguji 1",
+                        placeholder = "Pilih penguji 1",
+                        value = penguji1,
+                        options = penguji1Options,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
+                        onSelect = { penguji1 = it }
+                    )
+
+                    AppDropdownField(
+                        label = "Dosen Penguji 2",
+                        placeholder = "Pilih penguji 2",
+                        value = penguji2,
+                        options = penguji2Options,
+                        enabled = !lecturerState.isLoading,
+                        emptyText = dropdownEmptyText,
+                        onSelect = { penguji2 = it }
+                    )
                 }
             }
 
             item {
                 SectionTitle(
                     icon = Icons.Rounded.UploadFile,
-                    title = "Berkas Administrasi & Skripsi"
+                    title = "Berkas Pendaftaran"
                 )
             }
 
@@ -340,12 +347,12 @@ fun PendaftaranKolokiumFormScreen(
                             studentName = nama.trim(),
                             nim = npm.trim(),
                             phone = nomorHp.trim(),
-                            title = judulIndonesia.trim(),
-                            titleEnglish = judulEnglish.trim(),
+                            title = judulSkripsi.trim(),
+                            titleEnglish = judulInggris.trim().ifBlank { null },
                             supervisor1 = pembimbing1.trim(),
                             supervisor2 = pembimbing2.trim(),
-                            examiner1 = null,
-                            examiner2 = null,
+                            examiner1 = penguji1.trim(),
+                            examiner2 = penguji2.trim(),
                             files = selectedFileUris.toMap()
                         )
                     },
@@ -359,7 +366,9 @@ fun PendaftaranKolokiumFormScreen(
                         disabledContentColor = Color.Gray
                     )
                 ) {
-                    Text(text = if (uploadState.isLoading) "Mengirim..." else "Daftar Sidang")
+                    Text(
+                        text = if (uploadState.isLoading) "Mengirim..." else "Daftar Kolokium"
+                    )
                 }
             }
         }

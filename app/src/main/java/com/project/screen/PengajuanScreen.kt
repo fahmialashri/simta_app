@@ -13,22 +13,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +38,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.project.component.MahasiswaBottomNavItem
+import com.project.component.MahasiswaBottomNavigation
 import com.project.core.SimtaRed
 import com.project.navigation.Screen
 
@@ -51,27 +50,9 @@ fun PengajuanScreen(
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         bottomBar = {
-            PengajuanBottomNavigation(
-                onHomeClick = {
-                    navController.navigate(Screen.MahasiswaDashboard.route) {
-                        popUpTo(Screen.MahasiswaDashboard.route) {
-                            inclusive = true
-                        }
-                    }
-                },
-                onPengajuanClick = {
-                    // Tetap di halaman Pengajuan
-                },
-                onBimbinganClick = {
-                    navController.navigate(Screen.Bimbingan.route) {
-                        popUpTo(Screen.MahasiswaDashboard.route)
-                    }
-                },
-                onProfileClick = {
-                    navController.navigate(Screen.Profile.route) {
-                        popUpTo(Screen.MahasiswaDashboard.route)
-                    }
-                }
+            MahasiswaBottomNavigation(
+                navController = navController,
+                selectedItem = MahasiswaBottomNavItem.PENGAJUAN
             )
         }
     ) { paddingValues ->
@@ -197,38 +178,38 @@ fun PengajuanMenuCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(68.dp),
-        shape = RoundedCornerShape(10.dp),
+            .height(92.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = SimtaRed
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
+            defaultElevation = 3.dp
         ),
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 14.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFF8E3E3)),
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = SimtaRed,
-                    modifier = Modifier.size(20.dp)
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -236,131 +217,39 @@ fun PengajuanMenuCard(
             ) {
                 Text(
                     text = title,
-                    color = Color(0xFF2D2D2D),
+                    color = Color.White,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 2,
+                    lineHeight = 15.sp
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = subtitle,
-                    color = Color(0xFF8A8A8A),
+                    color = Color.White.copy(alpha = 0.88f),
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Normal,
-                    maxLines = 1
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    lineHeight = 13.sp
                 )
             }
 
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFFBDBDBD),
-                modifier = Modifier.size(24.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
-    }
-}
-
-@Composable
-fun PengajuanBottomNavigation(
-    onHomeClick: () -> Unit,
-    onPengajuanClick: () -> Unit,
-    onBimbinganClick: () -> Unit,
-    onProfileClick: () -> Unit
-) {
-    val navItemColors = NavigationBarItemDefaults.colors(
-        selectedIconColor = Color.White,
-        unselectedIconColor = Color.White.copy(alpha = 0.68f),
-        selectedTextColor = Color.White,
-        unselectedTextColor = Color.White.copy(alpha = 0.68f),
-        indicatorColor = Color.Transparent
-    )
-
-    NavigationBar(
-        containerColor = SimtaRed,
-        tonalElevation = 8.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        NavigationBarItem(
-            selected = false,
-            onClick = onHomeClick,
-            colors = navItemColors,
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Home",
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            label = {
-                Text(
-                    text = "Home",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        )
-
-        NavigationBarItem(
-            selected = true,
-            onClick = onPengajuanClick,
-            colors = navItemColors,
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Article,
-                    contentDescription = "Pengajuan",
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            label = {
-                Text(
-                    text = "Pengajuan",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = onBimbinganClick,
-            colors = navItemColors,
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Assignment,
-                    contentDescription = "Bimbingan",
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            label = {
-                Text(
-                    text = "Bimbingan",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        )
-
-        NavigationBarItem(
-            selected = false,
-            onClick = onProfileClick,
-            colors = navItemColors,
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profil",
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            label = {
-                Text(
-                    text = "Profil",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        )
     }
 }
