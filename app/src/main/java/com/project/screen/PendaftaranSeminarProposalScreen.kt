@@ -77,6 +77,14 @@ fun PendaftaranSeminarProposalScreen(
                     .padding(top = 20.dp, bottom = 24.dp)
             ) {
                 ProposalMenuCard(
+                    icon = Icons.Default.Assignment,
+                    title = "Pengajuan Judul Proposal",
+                    subtitle = "Ajukan judul untuk disetujui dosen",
+                    onClick = {
+                        navController.navigate(Screen.AjukanJudulProposal.route)
+                    }
+                )
+                ProposalMenuCard(
                     title = "Pendaftaran Seminar Proposal",
                     subtitle = "Isi formulir dan upload berkas pendaftaran",
                     icon = Icons.Default.Article,
