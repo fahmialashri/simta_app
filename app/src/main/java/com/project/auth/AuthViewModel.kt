@@ -210,7 +210,6 @@ class AuthViewModel : ViewModel() {
                         isLoading = false,
                         errorMessage = siskaResult.message
                     )
-
                     _toastMessage.emit(siskaResult.message)
                     return@launch
                 }
@@ -238,10 +237,13 @@ class AuthViewModel : ViewModel() {
                     }
                 }
 
-                _toastMessage.emit("Pendaftaran berhasil.")
+                _uiState.value = AuthUiState(
+                    isLoading = false,
+                    isLoggedIn = false,
+                    errorMessage = null
+                )
 
-                delay(700)
-                checkSession()
+                _toastMessage.emit("Pendaftaran berhasil. Silakan cek email untuk verifikasi akun.")
             } catch (e: Exception) {
                 val message = e.message ?: "Register gagal"
 
