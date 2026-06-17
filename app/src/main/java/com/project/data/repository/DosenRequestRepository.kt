@@ -56,17 +56,14 @@ class DosenRequestRepository {
             )
         }
 
-        return (primaryRequests + secondaryRequestsFromTarget + secondaryRequestsFromSubmission)
-            .distinctBy { item ->
-                "${item.request.id}_${item.supervisorRole}"
+        val allStudents = primaryRequests + secondaryRequestsFromTarget + secondaryRequestsFromSubmission
+
+        return allStudents
+            .groupBy { it.request.studentId }
+            .map { (_, items) ->
+                items.firstOrNull { it.supervisorRole == "Pembimbing 1" } ?: items.first()
             }
-            .sortedWith(
-                compareByDescending<DosenSupervisedStudentItem> {
-                    it.supervisorRole == "Pembimbing 1"
-                }.thenByDescending {
-                    it.request.id
-                }
-            )
+            .sortedByDescending { it.request.id }
     }
 
     suspend fun getReviewItems(
@@ -149,8 +146,11 @@ class DosenRequestRepository {
         }
 
         return result
-            .distinctBy { item ->
-                "${item.chapter.id}_${item.supervisorRole}"
+            .groupBy { item ->
+                "${item.request.studentId}_${item.chapter.id}"
+            }
+            .map { (_, items) ->
+                items.firstOrNull { it.supervisorRole == "Pembimbing 1" } ?: items.first()
             }
             .sortedByDescending { item ->
                 item.submissions.firstOrNull()?.id ?: item.chapter.id
@@ -175,61 +175,9 @@ class DosenRequestRepository {
         lecturer: Lecturer?,
         primaryRequestIds: Set<Long>
     ): List<SupervisorRequest> {
-        if (lecturer == null) {
-            return emptyList()
-        }
-
-        val lecturerKeys = buildLecturerMatchingKeys(lecturer)
-
-        if (lecturerKeys.isEmpty()) {
-            return emptyList()
-        }
-
-        val thesisSubmissions = supabase
-            .from("thesis_submissions")
-            .select()
-            .decodeList<ThesisSubmission>()
-            .sortedByDescending { submission ->
-                submission.createdAt.orEmpty()
-            }
-
-        val matchedStudentIds = thesisSubmissions
-            .filter { submission ->
-                val submissionNames = listOfNotNull(
-                    submission.supervisor2,
-                    submission.examiner1,
-                    submission.examiner2
-                )
-
-                submissionNames.any { storedName ->
-                    isSameLecturerName(
-                        lecturerKeys = lecturerKeys,
-                        storedName = storedName
-                    )
-                }
-            }
-            .map { submission ->
-                submission.studentId
-            }
-            .distinct()
-
-        if (matchedStudentIds.isEmpty()) {
-            return emptyList()
-        }
-
-        val requests = mutableListOf<SupervisorRequest>()
-
-        matchedStudentIds.forEach { studentId ->
-            val acceptedRequest = getLatestAcceptedRequestByStudentId(studentId)
-
-            if (acceptedRequest != null && acceptedRequest.id !in primaryRequestIds) {
-                requests.add(acceptedRequest)
-            }
-        }
-
-        return requests.distinctBy { request ->
-            request.id
-        }
+        // Dinonaktifkan sementara agar tidak ada inferensi dosen dari teks nama
+        // yang bisa memunculkan mahasiswa ke dosen yang salah.
+        return emptyList()
     }
 
     private suspend fun getTargetedSubmissionsByLecturerId(
@@ -270,47 +218,6 @@ class DosenRequestRepository {
             .sortedByDescending { submission ->
                 submission.id
             }
-    }
-
-    private fun buildLecturerMatchingKeys(
-        lecturer: Lecturer
-    ): Set<String> {
-        return listOf(
-            lecturer.name,
-            lecturer.fullName,
-            "${lecturer.name}, ${lecturer.title.orEmpty()}",
-            "${lecturer.name} ${lecturer.title.orEmpty()}"
-        )
-            .map { value ->
-                value.normalizeLecturerName()
-            }
-            .filter { value ->
-                value.isNotBlank()
-            }
-            .toSet()
-    }
-
-    private fun isSameLecturerName(
-        lecturerKeys: Set<String>,
-        storedName: String
-    ): Boolean {
-        val normalizedStoredName = storedName.normalizeLecturerName()
-
-        if (normalizedStoredName.isBlank()) {
-            return false
-        }
-
-        if (normalizedStoredName in lecturerKeys) {
-            return true
-        }
-
-        return lecturerKeys.any { lecturerName ->
-            lecturerName.isNotBlank() &&
-                    (
-                            normalizedStoredName.contains(lecturerName) ||
-                                    lecturerName.contains(normalizedStoredName)
-                            )
-        }
     }
 
     private suspend fun getLatestAcceptedRequestByStudentId(
