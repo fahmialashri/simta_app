@@ -85,20 +85,31 @@ fun RegisterScreen(
     var selectedDepartmentId by remember { mutableStateOf(1L) }
     var isProgramStudiExpanded by remember { mutableStateOf(false) }
 
+    var showEmailVerificationDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         authViewModel.toastMessage.collect { message ->
-            Toast.makeText(
-                context,
-                message.toUserFriendlyAuthMessage(
-                    fallback = "Pendaftaran belum berhasil. Silakan coba lagi."
-                ),
-                Toast.LENGTH_SHORT
-            ).show()
+            val isRegisterSuccessMessage =
+                message.contains("Pendaftaran berhasil", ignoreCase = true) ||
+                        message.contains("cek email", ignoreCase = true) ||
+                        message.contains("verifikasi", ignoreCase = true)
+
+            if (isRegisterSuccessMessage) {
+                showEmailVerificationDialog = true
+            } else {
+                Toast.makeText(
+                    context,
+                    message.toUserFriendlyAuthMessage(
+                        fallback = "Pendaftaran belum berhasil. Silakan coba lagi."
+                    ),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
-    LaunchedEffect(state.isLoggedIn, state.role) {
-        if (state.isLoggedIn) {
+    LaunchedEffect(state.isLoggedIn, state.role, showEmailVerificationDialog) {
+        if (state.isLoggedIn && !showEmailVerificationDialog) {
             delay(500)
 
             when (state.role) {
@@ -452,6 +463,60 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+
+    if (showEmailVerificationDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showEmailVerificationDialog = false
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Register.route) {
+                        inclusive = true
+                    }
+                    launchSingleTop = true
+                }
+            },
+            title = {
+                Text(
+                    text = "Verifikasi Email",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color.Black
+                )
+            },
+            text = {
+                Text(
+                    text = "Pendaftaran berhasil. Silakan cek email Anda untuk melakukan verifikasi akun sebelum login.",
+                    fontSize = 14.sp,
+                    color = Color.DarkGray
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showEmailVerificationDialog = false
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Register.route) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SimtaRed
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "Ke Halaman Login",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 
     if (state.errorMessage != null) {

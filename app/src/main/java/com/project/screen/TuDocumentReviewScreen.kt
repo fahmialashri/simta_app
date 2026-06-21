@@ -70,6 +70,7 @@ fun TuDocumentReviewScreen(
     val title = when (stage) {
         "seminar_proposal" -> "Review Berkas Seminar Proposal"
         "kolokium" -> "Review Berkas Kolokium"
+        "pendaftaran_kolokium" -> "Review Berkas Kolokium"
         "yudisium" -> "Review Berkas Yudisium"
         "revisi_seminar_proposal" -> "Review Revisi Seminar Proposal"
         "revisi_kolokium" -> "Review Revisi Kolokium"
@@ -265,7 +266,10 @@ private fun TuSubmissionCard(
                 Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .background(SimtaRed.copy(alpha = 0.12f), RoundedCornerShape(16.dp)),
+                        .background(
+                            color = SimtaRed.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -315,13 +319,15 @@ private fun TuSubmissionCard(
                 )
             }
 
-            if (!submission.examiner1.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
+            if (
+                !submission.examiner1.isNullOrBlank() ||
+                !submission.examiner2.isNullOrBlank()
+            ) {
+                Spacer(modifier = Modifier.height(10.dp))
 
-                Text(
-                    text = "Penguji: ${submission.examiner1}",
-                    fontSize = 11.sp,
-                    color = Color.DarkGray
+                ExaminerPlottingInfoCard(
+                    examiner1 = submission.examiner1,
+                    examiner2 = submission.examiner2
                 )
             }
 
@@ -427,6 +433,71 @@ private fun TuSubmissionCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ExaminerPlottingInfoCard(
+    examiner1: String?,
+    examiner2: String?
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0xFFF8F9FA),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(12.dp)
+    ) {
+        Text(
+            text = "Dosen Penguji",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.Black
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        ExaminerTextRow(
+            label = "Penguji 1",
+            value = examiner1
+        )
+
+        if (!examiner2.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(5.dp))
+
+            ExaminerTextRow(
+                label = "Penguji 2",
+                value = examiner2
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExaminerTextRow(
+    label: String,
+    value: String?
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "$label:",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.DarkGray,
+            modifier = Modifier.weight(0.35f)
+        )
+
+        Text(
+            text = value?.takeIf { it.isNotBlank() } ?: "-",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.Black,
+            modifier = Modifier.weight(0.65f)
+        )
     }
 }
 

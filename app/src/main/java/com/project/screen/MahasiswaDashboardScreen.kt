@@ -826,6 +826,7 @@ private fun SupervisorRow(
     }
 }
 
+
 @Composable
 private fun ProgressCard(
     progress: Float,
@@ -846,12 +847,25 @@ private fun ProgressCard(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 20.dp)
         ) {
-            Text(
-                text = "Status Tugas Akhir Anda",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.Black
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Status Bimbingan",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.Black
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Text(
+                    text = "(BAB 1 - BAB 5)",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.Black
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -889,10 +903,28 @@ private fun ProgressCard(
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.Black
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                repeat(5) { index ->
+                    val babNumber = index + 1
+                    val isDone = progress >= babNumber / 5f
+
+                    Text(
+                        text = if (isDone) "BAB $babNumber ✓" else "BAB $babNumber",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDone) SimtaRed else Color.Gray
+                    )
+                }
+            }
         }
     }
 }
-
 @Composable
 private fun ComponentStatusCard(
     chapters: List<ThesisChapter>

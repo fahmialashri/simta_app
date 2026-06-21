@@ -22,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.project.R // Pastikan ini mengarah ke R package project lu
+import com.project.R
 import com.project.auth.AuthViewModel
 import com.project.core.SimtaRed
 import com.project.navigation.Screen
@@ -36,25 +36,33 @@ fun SplashScreen(
     val state by authViewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
-        delay(1500) // Gua tambahin delay dikit jadi 1.5 detik biar logonya sempet kelihatan cakep
+        delay(1500)
         authViewModel.checkSession()
     }
 
     LaunchedEffect(state.isLoading, state.isLoggedIn, state.role) {
         if (!state.isLoading) {
             if (state.isLoggedIn) {
-                when (state.role) {
-                    "dosen" -> navController.navigate(Screen.DosenDashboard.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
-                    }
+                val destination = when (state.role?.trim()?.lowercase()) {
+                    "mahasiswa" -> Screen.MahasiswaDashboard.route
+                    "dosen" -> Screen.DosenDashboard.route
+                    "kaprodi" -> Screen.KaprodiDashboard.route
+                    "tu" -> Screen.TuDashboard.route
+                    else -> Screen.Login.route
+                }
 
-                    else -> navController.navigate(Screen.MahasiswaDashboard.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
+                navController.navigate(destination) {
+                    popUpTo(Screen.Splash.route) {
+                        inclusive = true
                     }
+                    launchSingleTop = true
                 }
             } else {
                 navController.navigate(Screen.Onboarding.route) {
-                    popUpTo(Screen.Splash.route) { inclusive = true }
+                    popUpTo(Screen.Splash.route) {
+                        inclusive = true
+                    }
+                    launchSingleTop = true
                 }
             }
         }
@@ -67,12 +75,10 @@ fun SplashScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // --- TEMPAT LOGO DI SINI ---
-        // Ganti R.drawable.ic_launcher_foreground dengan nama file logo lu di folder drawable
         Image(
-            painter = painterResource(id = R.drawable.logo_simta), // Contoh: R.drawable.logo_simta
+            painter = painterResource(id = R.drawable.logo_simta),
             contentDescription = "Logo SIMTA",
-            modifier = Modifier.size(120.dp) // Ukuran logo bisa lu gede/kecilin di sini
+            modifier = Modifier.size(120.dp)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -80,16 +86,16 @@ fun SplashScreen(
         Text(
             text = "SIMTA",
             color = SimtaRed,
-            fontSize = 32.sp, // Gua gedein dikit biar lebih proporsional sama logo
+            fontSize = 32.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 8.sp
         )
 
-        Spacer(modifier = Modifier.height(48.dp)) // Jarak agak jauh ke loading indicator biar rapi
+        Spacer(modifier = Modifier.height(48.dp))
 
         CircularProgressIndicator(
             color = SimtaRed,
-            strokeWidth = 3.dp, // Bikin garis loadingnya agak tipis biar kelihatan lebih modern
+            strokeWidth = 3.dp,
             modifier = Modifier.size(36.dp)
         )
     }

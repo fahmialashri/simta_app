@@ -130,7 +130,9 @@ fun AppNavGraph() {
 
         composable(Screen.Pengajuan.route) {
             PengajuanScreen(
-                navController = navController
+                navController = navController,
+                authViewModel = authViewModel,
+                uploadBerkasViewModel = uploadBerkasViewModel
             )
         }
 

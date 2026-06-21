@@ -1,5 +1,6 @@
 package com.project.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,9 @@ import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -29,24 +33,58 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.project.auth.AuthViewModel
 import com.project.component.MahasiswaBottomNavItem
 import com.project.component.MahasiswaBottomNavigation
 import com.project.core.SimtaRed
 import com.project.navigation.Screen
+import com.project.upload.UploadBerkasViewModel
 
 @Composable
 fun PengajuanScreen(
-    navController: NavHostController
+    navController: NavHostController,
+    authViewModel: AuthViewModel,
+    uploadBerkasViewModel: UploadBerkasViewModel
 ) {
+    val context = LocalContext.current
+
+    val authState by authViewModel.uiState.collectAsState()
+    val uploadState by uploadBerkasViewModel.uiState.collectAsState()
+
+    LaunchedEffect(authState.userId) {
+        uploadBerkasViewModel.loadMySubmissions(authState.userId)
+    }
+
+    val seminarProposalSubmission = uploadState.submissions.firstOrNull {
+        it.stage == "seminar_proposal"
+    }
+
+    val kolokiumSubmission = uploadState.submissions.firstOrNull {
+        it.stage == "pendaftaran_kolokium" || it.stage == "kolokium"
+    }
+
+    val yudisiumSubmission = uploadState.submissions.firstOrNull {
+        it.stage == "yudisium"
+    }
+
+    val kolokiumApproved = uploadState.submissions.any {
+        (it.stage == "pendaftaran_kolokium" || it.stage == "kolokium") &&
+                it.status.isApprovedStatus()
+    }
+
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         bottomBar = {
@@ -78,6 +116,34 @@ fun PengajuanScreen(
                     .padding(top = 20.dp, bottom = 24.dp)
             ) {
                 PengajuanMenuCard(
+                    title = "Pilih Dosen Pembimbing",
+                    subtitle = "Lihat dan pilih dosen pembimbing sesuai program studi",
+                    icon = Icons.Default.School,
+                    onClick = {
+                        navController.navigate(Screen.LecturerList.route)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (seminarProposalSubmission != null) {
+                    RegistrationStatusCard(
+                        title = "Pendaftaran Seminar Proposal",
+                        status = seminarProposalSubmission.status,
+                        date = seminarProposalSubmission.createdAt,
+                        onDetailClick = {
+                            Toast.makeText(
+                                context,
+                                "Status Seminar Proposal: ${seminarProposalSubmission.status.toReadableSubmissionStatus()}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                PengajuanMenuCard(
                     title = "Pendaftaran Seminar Proposal",
                     subtitle = "Daftar dan lengkapi layanan seminar proposal",
                     icon = Icons.Default.Article,
@@ -87,6 +153,23 @@ fun PengajuanScreen(
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
+
+                if (kolokiumSubmission != null) {
+                    RegistrationStatusCard(
+                        title = "Pendaftaran Kolokium",
+                        status = kolokiumSubmission.status,
+                        date = kolokiumSubmission.createdAt,
+                        onDetailClick = {
+                            Toast.makeText(
+                                context,
+                                "Status Kolokium: ${kolokiumSubmission.status.toReadableSubmissionStatus()}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 PengajuanMenuCard(
                     title = "Pendaftaran Kolokium",
@@ -99,14 +182,39 @@ fun PengajuanScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                if (yudisiumSubmission != null) {
+                    RegistrationStatusCard(
+                        title = "Pendaftaran Yudisium",
+                        status = yudisiumSubmission.status,
+                        date = yudisiumSubmission.createdAt,
+                        onDetailClick = {
+                            Toast.makeText(
+                                context,
+                                "Status Yudisium: ${yudisiumSubmission.status.toReadableSubmissionStatus()}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 PengajuanMenuCard(
                     title = "Pendaftaran Yudisium",
                     subtitle = "Daftar dan lengkapi berkas yudisium",
                     icon = Icons.Default.Person,
                     onClick = {
-                        navController.navigate(
-                            Screen.UploadBerkas.createRoute("yudisium")
-                        )
+                        if (kolokiumApproved) {
+                            navController.navigate(
+                                Screen.UploadBerkas.createRoute("yudisium")
+                            )
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Anda harus menyelesaikan Kolokium terlebih dahulu.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 )
             }
@@ -251,5 +359,97 @@ fun PengajuanMenuCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun RegistrationStatusCard(
+    title: String,
+    status: String,
+    date: String?,
+    onDetailClick: () -> Unit
+) {
+    val approved = status.isApprovedStatus()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = if (approved) "✓ $title" else title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (approved) Color(0xFF2E7D32) else Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Status: ${status.toReadableSubmissionStatus()}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.DarkGray
+            )
+
+            if (!date.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Tanggal daftar: ${date.take(10)}",
+                    fontSize = 12.sp,
+                    color = Color.DarkGray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onDetailClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SimtaRed
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = "Lihat Detail",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+fun String.isApprovedStatus(): Boolean {
+    return this == "disetujui_tu" ||
+            this == "disetujui_kaprodi" ||
+            this == "approved" ||
+            this == "accepted"
+}
+
+fun String.toReadableSubmissionStatus(): String {
+    return when (this) {
+        "menunggu_review" -> "Menunggu Review TU"
+        "disetujui_tu" -> "Disetujui TU"
+        "ditolak_tu" -> "Ditolak TU"
+        "disetujui_kaprodi" -> "Disetujui Kaprodi"
+        "ditolak_kaprodi" -> "Ditolak Kaprodi"
+        "approved" -> "Disetujui"
+        "accepted" -> "Diterima"
+        "rejected" -> "Ditolak"
+        "pending" -> "Menunggu"
+        else -> this
+            .replace("_", " ")
+            .replaceFirstChar { it.uppercase() }
     }
 }
