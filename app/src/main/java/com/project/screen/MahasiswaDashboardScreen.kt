@@ -63,6 +63,7 @@ import com.project.core.SimtaRed
 import com.project.data.model.ThesisChapter
 import com.project.data.model.ThesisSubmission
 import com.project.navigation.Screen
+import com.project.notification.GuidanceReminderScheduler
 import com.project.supervisor.SupervisorRequestViewModel
 import com.project.upload.UploadBerkasViewModel
 
@@ -95,6 +96,13 @@ fun MahasiswaDashboardScreen(
     LaunchedEffect(authState.userId) {
         supervisorRequestViewModel.loadMyRequestProgress(authState.userId)
         uploadBerkasViewModel.loadMySubmissions(authState.userId)
+
+        if (!authState.userId.isNullOrBlank()) {
+            GuidanceReminderScheduler.schedule(
+                context = context,
+                studentId = authState.userId.orEmpty()
+            )
+        }
     }
 
     val request = requestState.activeRequest
@@ -214,6 +222,15 @@ fun MahasiswaDashboardScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             QuoteCard()
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            GuidanceReminderSection(
+                daysSinceLastGuidance = null,
+                onScheduleClick = {
+                    navController.navigate(Screen.Bimbingan.route)
+                }
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -721,6 +738,195 @@ private fun QuoteCard() {
 }
 
 @Composable
+private fun GuidanceReminderSection(
+    daysSinceLastGuidance: Int?,
+    onScheduleClick: () -> Unit = {}
+) {
+    val days = daysSinceLastGuidance
+
+    val level = when {
+        days == null -> -1
+        days >= 21 -> 3
+        days >= 14 -> 2
+        days >= 7 -> 1
+        else -> 0
+    }
+
+    val badgeText: String
+    val titleText: String
+    val messageText: String
+    val accentColor: Color
+    val progressValue: Float
+
+    when (level) {
+        3 -> {
+            badgeText = "Peringatan Terakhir"
+            titleText = "21 Hari"
+            messageText = "Sudah 21 hari atau lebih sejak bimbingan terakhir. Segera hubungi dosen pembimbing agar progres TA tidak terhambat."
+            accentColor = Color(0xFFD32F2F)
+            progressValue = 1f
+        }
+
+        2 -> {
+            badgeText = "Pengingat Kedua"
+            titleText = "14 Hari"
+            messageText = "Sudah 14 hari belum melakukan bimbingan. Jangan sampai progres skripsi tertunda."
+            accentColor = Color(0xFFFF9800)
+            progressValue = 0.66f
+        }
+
+        1 -> {
+            badgeText = "Pengingat Pertama"
+            titleText = "7 Hari"
+            messageText = "Sudah 7 hari sejak bimbingan terakhir. Yuk segera hubungi dosen pembimbing."
+            accentColor = Color(0xFFFFC107)
+            progressValue = 0.33f
+        }
+
+        0 -> {
+            badgeText = "Bimbingan Aman"
+            titleText = "${days ?: 0} Hari"
+            messageText = "Kamu masih berada di zona aman. Pertahankan rutinitas bimbingan agar progres tetap lancar."
+            accentColor = Color(0xFF4CAF50)
+            progressValue = 0f
+        }
+
+        else -> {
+            badgeText = "Belum Ada Data"
+            titleText = "—"
+            messageText = "Belum ada data bimbingan terakhir yang bisa dihitung."
+            accentColor = Color(0xFF9E9E9E)
+            progressValue = 0f
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFF5F5F5)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(accentColor.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = accentColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Pengingat Bimbingan",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = badgeText,
+                        color = accentColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+                text = titleText,
+                fontSize = 34.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = accentColor
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Sejak bimbingan terakhir",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.White)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progressValue.coerceIn(0f, 1f))
+                        .clip(RoundedCornerShape(50))
+                        .background(accentColor)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = messageText,
+                fontSize = 13.sp,
+                lineHeight = 20.sp,
+                color = Color.DarkGray
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(accentColor)
+                    .clickable { onScheduleClick() }
+                    .padding(vertical = 14.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "Lakukan Bimbingan",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SupervisorCard(
     supervisor1Name: String,
     supervisor2Name: String?,
@@ -826,7 +1032,6 @@ private fun SupervisorRow(
     }
 }
 
-
 @Composable
 private fun ProgressCard(
     progress: Float,
@@ -925,6 +1130,7 @@ private fun ProgressCard(
         }
     }
 }
+
 @Composable
 private fun ComponentStatusCard(
     chapters: List<ThesisChapter>

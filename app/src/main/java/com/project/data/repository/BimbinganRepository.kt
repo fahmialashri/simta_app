@@ -14,6 +14,8 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
 import io.github.jan.supabase.storage.upload
 import io.ktor.http.ContentType
+import java.time.Instant
+import java.time.OffsetDateTime
 
 class BimbinganRepository {
 
@@ -89,7 +91,7 @@ class BimbinganRepository {
                 }
             }
             .decodeList<ThesisSubmission>()
-            .sortedByDescending { it.createdAt.orEmpty() }
+            .sortedByDescending { parseInstantOrNull(it.createdAt ?: it.updatedAt ?: "") ?: Instant.EPOCH }
             .firstOrNull { !it.supervisor2.isNullOrBlank() }
 
         val supervisor2Name = latestSubmission?.supervisor2.orEmpty()
@@ -109,6 +111,22 @@ class BimbinganRepository {
         }
 
         return result.distinctBy { it.lecturerId }
+    }
+
+    suspend fun getLatestSubmissionAt(studentId: String): String? {
+        val latestSubmission = supabase
+            .from("thesis_submissions")
+            .select {
+                filter {
+                    eq("student_id", studentId)
+                }
+            }
+            .decodeList<ThesisSubmission>()
+            .maxByOrNull { submission ->
+                parseInstantOrNull(submission.createdAt ?: submission.updatedAt ?: "") ?: Instant.EPOCH
+            }
+
+        return latestSubmission?.createdAt ?: latestSubmission?.updatedAt
     }
 
     suspend fun uploadChapterFile(
@@ -229,6 +247,18 @@ class BimbinganRepository {
                             normalizedStoredName.contains(normalizedLecturerName)
                 }
             }
+    }
+
+    private fun parseInstantOrNull(raw: String): Instant? {
+        return try {
+            Instant.parse(raw)
+        } catch (_: Exception) {
+            try {
+                OffsetDateTime.parse(raw).toInstant()
+            } catch (_: Exception) {
+                null
+            }
+        }
     }
 
     private fun buildPublicStorageUrl(path: String): String {
